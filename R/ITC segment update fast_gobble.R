@@ -87,7 +87,7 @@ edge.dist<-function(z, scale, htod_lut, tau)
 }
 
 #imagery=uav_chm
-imagery<-uav_chm_crop+5; THRESHSeed=0.7; THRESHCrown=0.7; specT=2
+imagery<-uav_chm_crop+5; THRESHSeed=0.7; THRESHCrown=0.7; specT=2; lm.searchwin=NULL
 # Extracts just the locations of the tree maxima:
 itcIMG_fast<-function (imagery = NULL, THRESHSeed, 
 THRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
@@ -100,7 +100,10 @@ THRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
   kernY<-matrix(c(-1,-2,-1,0,0,0,1,2,1), 3, 3, byrow=TRUE)
   im_sobel <- raster::focal(imagery, w = matrix(1, 3, 3), 
                             fun = function(x) {
-                              sqrt(sum(x* kernX)^2 + sum(x* kernY)^2)
+                              y<-sqrt(sum(x* kernX)^2 + sum(x* kernY)^2)
+                              if(is.na(y))
+                                y<-0
+                              return(y)
                             })
   plot(im_sobel, colNA='red')
   # I have chosen to run the sobel before the blur because the edges seem much more crisp that way
@@ -110,7 +113,7 @@ THRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
   # Blurs the chm:
   if(blur)
   {
-  imagery <- raster::focal(imagery, w = matrix(1, 3, 3), 
+    imagery <- raster::focal(imagery, w = matrix(1, 3, 3), 
                            fun = function(x) {
                              mean(x, na.rm = T)
                            })
@@ -227,7 +230,7 @@ THRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
   treeHeights_mean<-treeHeights # Copies treeHeights so that the mean crown values can be saved.
 
   cat('Segmenting crowns\n')  
-  #ind<-2
+  #ind<-1
   for(ind in 1:Ntrees)
   {  
       newCrown<-matrix(coordSeeds[ind,], ncol=2, dimnames=list(NULL, c('row', 'col'))) # The pixel for the new crown seed is marked as newCrown, to initiate the next iteration.  
@@ -280,9 +283,6 @@ THRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
         filData[4, 4] <- Check[r + 1, k]
         filData[4, 5] <- Sobel[r + 1, k]
         
-        # A FUDGE to fix NA instances in the sobel
-        filData[is.na(filData[,5]),5]<-0
-        
         filData.CHK<<-filData
         # Calculates distance of pixels from the focal pixel
         fil.dists<-as.matrix(dist(rbind(coordSeed, filData[,1:2])))[1,-1]
@@ -299,6 +299,9 @@ THRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
                    (fil.dists<crownrad.THRESH) &
                    (filData[,4] == 0) &
                    (filData[,5] < rvSobel))
+        
+        if(any(filData[,5] > rvSobel))
+          break
         
         # Storing some information about the reasons for segmentation according to the parameters:
         boundcount[ind,1]<- boundcount[ind,1] + sum(!(filData[,4] %in% c(0,ind))) # pixel that is within another tree crown
