@@ -253,7 +253,7 @@ THRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
         # { # So longs as the pixel is not right on the boundary; !!! this might need to be changed depending on window size.
         
         rvSeed <- Gnew[coordSeed] # Extracts the tree height.
-        rvSobel <- rvSeed * (1-THRESHSeed) * 4
+        rvSobel <- rvSeed * (1-THRESHSeed) * 2 # This multiplier changes the sensitivity of the sobel segment
         #rvCrown <- mean(Gnew[coordCrown[,1]+nrow(Gnew)*(coordCrown[,2]-1)], na.rm = T) # Extracts the mean tree height.
         crownHeights<-Gnew[matrix(coordCrown[crown.indSeed:crown.ind,], ncol=2, dimnames=list(NULL, c('row', 'col')))]
         rvCrown <- mean(crownHeights) # Extracts the mean tree height.
@@ -300,8 +300,8 @@ THRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
                    (filData[,4] == 0) &
                    (filData[,5] < rvSobel))
         
-        if(any(filData[,5] > rvSobel))
-          break
+        #if(any(filData[,5] > rvSobel))
+        #  break
         
         # Storing some information about the reasons for segmentation according to the parameters:
         boundcount[ind,1]<- boundcount[ind,1] + sum(!(filData[,4] %in% c(0,ind))) # pixel that is within another tree crown
@@ -315,7 +315,11 @@ THRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
                                                       filData[,4] == 0 &
                                                       fil.dists < crownrad.THRESH &
                                                       filData[, 3] > (rvSeed * THRESHSeed))
-        sb<- boundcount[ind,5] + sum(filData[, 5] > rvSobel) # This whole bit needs refactoring. I don't think it's accurate.
+        boundcount[ind,5]<- boundcount[ind,5] + sum(filData[, 3] > (rvCrown * THRESHCrown) &
+                                       filData[,4] == 0 &
+                                       fil.dists < crownrad.THRESH &
+                                       filData[, 3] > (rvSeed * THRESHSeed) &
+                                       filData[, 5] > rvSobel)
         
         GFIL.CHK<<-GFIL
         
@@ -353,7 +357,7 @@ THRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
   sobel_mean<-sobel_mean[1:Ntrees]
   
   # Convert boundary condition counts to proportions:
-  boundcount<-cbind(prop.table(boundcount[,1:4], 1), boundcount[,5])
+  boundcount<-prop.table(boundcount[,1:5], 1)
   # !!!!! This needs to be fixed !!!!!
   
   #plot(y=sobel_mean,x=treeHeights)
