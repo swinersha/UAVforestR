@@ -105,7 +105,7 @@ THRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
                                 y<-0
                               return(y)
                             })
-  plot(im_sobel, colNA='red')
+  #plot(im_sobel, colNA='red')
   # I have chosen to run the sobel before the blur because the edges seem much more crisp that way
   #... not what I thought would happen but there you go.
   
@@ -253,7 +253,7 @@ THRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
         # { # So longs as the pixel is not right on the boundary; !!! this might need to be changed depending on window size.
         
         rvSeed <- Gnew[coordSeed] # Extracts the tree height.
-        rvSobel <- rvSeed * (1-THRESHSeed) * 2 # This multiplier changes the sensitivity of the sobel segment
+        rvSobel <- rvSeed * (1-THRESHSeed) * 4 # This multiplier changes the sensitivity of the sobel segment
         #rvCrown <- mean(Gnew[coordCrown[,1]+nrow(Gnew)*(coordCrown[,2]-1)], na.rm = T) # Extracts the mean tree height.
         crownHeights<-Gnew[matrix(coordCrown[crown.indSeed:crown.ind,], ncol=2, dimnames=list(NULL, c('row', 'col')))]
         rvCrown <- mean(crownHeights) # Extracts the mean tree height.
