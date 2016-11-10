@@ -87,7 +87,7 @@ edge.dist<-function(z, scale, htod_lut, tau)
 }
 
 #imagery=uav_chm
-imagery<-uav_chm_crop+5; THRESHSeed=0.7; THRESHCrown=0.7; specT=2; lm.searchwin=NULL
+#imagery<-uav_chm_crop+5; THRESHSeed=0.7; THRESHCrown=0.7; specT=2; lm.searchwin=NULL
 # Extracts just the locations of the tree maxima:
 itcIMG_fast<-function (imagery = NULL, THRESHSeed, 
 THRESHCrown, htod, specT, SOBELstr=4, lm.searchwin=NULL, blur=TRUE, gobble='off')
@@ -321,12 +321,13 @@ THRESHCrown, htod, specT, SOBELstr=4, lm.searchwin=NULL, blur=TRUE, gobble='off'
                                        filData[, 3] > (rvSeed * THRESHSeed) &
                                        filData[, 5] > rvSobel)
         
-        GFIL.CHK<<-GFIL
-        
+        #GFIL.CHK<<-GFIL
+        # Measuring the mean sobel edge strength:
+        # !!!!! This could be made more efficient !!!!
         if(any(!GFIL))
         {
-          sobel_weights<-c(sum(boundcount[ind,3:4]), rep(1, sum(!GFIL[3:4])))
-          sobel_mean[ind]<-weighted.mean(c(sobel_mean[ind], filData[3:4, 5][!GFIL[3:4]]), w=sobel_weights)
+          sobel_weights<-c(sum(boundcount[ind,3:5]), rep(1, sum(!GFIL[3:5])))
+          sobel_mean[ind]<-weighted.mean(c(sobel_mean[ind], filData[3:5, 5][!GFIL[3:5]]), w=sobel_weights)
         }
         boundcount[ind,3]<- hb
         boundcount[ind,4]<- mhb
