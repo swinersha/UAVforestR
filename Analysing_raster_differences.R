@@ -214,7 +214,7 @@ htor_lut_gta<-read.csv("htor_lut_gta.csv")
 lut<-htor_lut_gta
 htod<-htod_hrf
 uav_trees<-itcIMG_fast(uav_chm_crop+5, THRESHSeed=0.7, THRESHCrown=0.7, htod=htod_hrf, specT=2, lm.searchwin=NULL, blur=TRUE, gobble='off')
-uav_trees$normsobel<-uav_trees$sobel/uav_trees$CH_max
+uav_trees$normsobel<-log(uav_trees$sobel/uav_trees$CH_max)
 uav_trees$logsobel<-log(uav_trees$sobel)
 # Exploratory plots of the sobel edge intensity by tree height:
 hist(uav_trees$sobelbound)
@@ -272,28 +272,36 @@ treepos_dsm<-raster::extract(uav_dsm, treepos)
 treepos_uavchm<-raster::extract(uav_chm, treepos)
 treepos_lidchm<-raster::extract(lid_chm, treepos)
 
-segtree<-data.frame(x=conf.trees$maxx, y=conf.trees$maxy, h_uav=treepos_uavchm, h_lid=treepos_lidchm, CR_m=conf.trees$CR_m, h_CH50=conf.trees$CH50, sobel=conf.trees$sobel, normsobel=conf.trees$normsobel, hbound=conf.trees$heightbound+conf.trees$mheightbound)
+segtree<-data.frame(x=conf.trees$maxx, y=conf.trees$maxy, h_uav=treepos_uavchm, h_lid=treepos_lidchm, CR_m=conf.trees$CR_m, h_CH50=conf.trees$CH50, sobel=conf.trees$logsobel, normsobel=conf.trees$normsobel, hbound=conf.trees$heightbound+conf.trees$mheightbound+conf.trees$sobelbound)
 
 ggplot(segtree, aes(x=h_uav, y=h_lid, color=hbound)) + geom_point() + geom_smooth()
-ggplot(segtree, aes(x=h_uav, y=h_lid, color=normsobel)) + geom_point() + geom_smooth()
+ggplot(segtree, aes(x=h_uav, y=h_lid, color=sobel)) + geom_point() + geom_smooth()
 ggplot(segtree, aes(x=h_uav, y=h_lid, color=CR_m)) + geom_point() + geom_smooth()
 ggplot(segtree[segtree$hbound>0,], aes(x=h_uav, y=h_lid, color=normsobel)) + geom_point() + geom_smooth()
-ggplot(segtree[segtree$normsobel<0.1 & segtree$hbound>0,], aes(x=h_uav, y=h_lid, color=normsobel)) + geom_point() + geom_smooth() +xlim(0,45)
-ggplot(segtree[segtree$hbound>0.3 & segtree$sobel<40,], aes(x=h_CH50, y=h_lid, color=hbound, size=sobel)) + geom_point() + geom_smooth()
-ggplot(segtree[segtree$hbound>0.3,], aes(x=h_CH50, y=h_lid, color=hbound, size=sobel)) + geom_point() + geom_smooth()
-ggplot(segtree[segtree$hbound>0.3,], aes(x=h_uav, y=h_lid, color=CR_m, size=sobel)) + geom_point() + geom_smooth()
+# It looks like there are some features which might be useful in 
+# separating true 0 CHM values from non-0 CHM values.
+ggplot(segtree[segtree$hbound>0.4,], aes(x=h_uav, y=h_lid, color=normsobel, size=CR_m)) + geom_point() + geom_smooth()
+ggplot(segtree, aes(x=h_uav, y=CR_m, col=hbound)) + geom_point() + geom_smooth()
+ggplot(segtree, aes(x=h_lid, y=CR_m, col=hbound)) + geom_point() + geom_smooth()
+ggplot(segtree, aes(x=h_lid, y=CR_m, col=normsobel)) + geom_point() + geom_smooth()
+ggplot(segtree[segtree$hbound>0.4,], aes(x=h_uav, y=CR_m, col=hbound)) + geom_point() + geom_smooth()
+ggplot(segtree[segtree$hbound>0.4,], aes(x=h_lid, y=CR_m, col=hbound)) + geom_point() + geom_smooth(method = 'lm', formula=y ~ poly(x, 3, raw=TRUE))
 
-hbound_lim<-0.3
+# The relationship between the sobel edge, height and radius:
+ggplot(segtree_sub, aes(x=h_uav, y=normsobel)) + geom_point() + geom_smooth()
+ggplot(segtree_sub, aes(x=CR_m, y=normsobel)) + geom_point() + geom_smooth()
+
+hbound_lim<-0.4
 segtree_sub<-segtree[segtree$hbound>hbound_lim,]
 segtree_sub<-segtree_sub[complete.cases(segtree_sub),]
 fm_treeest0<-lm(h_lid~h_uav, data=segtree_sub)
-fm_treeest1<-lm(h_lid~h_uav+sobel+hbound, data=segtree_sub)
-fm_treeest2<-lm(h_lid~h_uav+CR_m*sobel+hbound, data=segtree_sub)
-fm_treeest3<-lm(h_lid~h_uav*CR_m*sobel+hbound, data=segtree_sub)
-fm_treeest4<-lm(h_lid~h_uav*CR_m+sobel+hbound, data=segtree_sub)
-fm_treeest5<-lm(h_lid~h_uav+CR_m+sobel+hbound+h_uav:CR_m+h_uav:sobel, data=segtree_sub)
-fm_treeest6<-lm(h_lid~h_uav+CR_m+sobel+hbound+h_uav:CR_m+CR_m:sobel, data=segtree_sub)
-fm_treeest7<-lm(h_lid~h_uav*CR_m*sobel, data=segtree_sub)
+fm_treeest1<-lm(h_lid~h_uav+normsobel+hbound, data=segtree_sub)
+fm_treeest2<-lm(h_lid~h_uav+CR_m*normsobel+hbound, data=segtree_sub)
+fm_treeest3<-lm(h_lid~h_uav*CR_m*normsobel+hbound, data=segtree_sub)
+fm_treeest4<-lm(h_lid~h_uav*CR_m+normsobel, data=segtree_sub)
+fm_treeest5<-lm(h_lid~h_uav+CR_m+normsobel+h_uav:CR_m+h_uav:normsobel, data=segtree_sub)
+fm_treeest6<-lm(h_lid~h_uav+CR_m+normsobel+h_uav:CR_m+CR_m:normsobel, data=segtree_sub)
+fm_treeest7<-lm(h_lid~h_uav*CR_m*normsobel, data=segtree_sub)
 
 fm_gam1<-mgcv::gam(h_lid~s(h_uav)+s(x, y, k=500), data=segtree_sub)
 fm_gam2<-mgcv::gam(h_lid~s(h_uav, k=500)+s(x, y, k=500), data=segtree_sub)
@@ -308,25 +316,29 @@ fm_gam9<-mgcv::gam(h_lid~h_uav+CR_m*sobel+s(x, y, k=500), data=segtree_sub, weig
 fm_gam10<-mgcv::gam(h_lid~h_uav+CR_m*sobel+hbound+s(x, y, k=500), data=segtree_sub) # Adding hbound doesn't improve on gm_gam8 without it
 
 # Test model fit
-AIC(fm_treeest0, fm_treeest1, fm_treeest2, fm_treeest3, fm_treeest4, fm_treeest5, fm_treeest6, fm_treeest8,
+AIC(fm_treeest0, fm_treeest1, fm_treeest2, fm_treeest3, fm_treeest4, fm_treeest5, fm_treeest6, fm_treeest7,
     fm_gam1, fm_gam2, fm_gam3, fm_gam4, fm_gam5, fm_gam6, fm_gam7, fm_gam8, fm_gam9, fm_gam10)
-model<-fm_treeest6
+AIC(fm_treeest0, fm_treeest1, fm_treeest2, fm_treeest3, fm_treeest4, fm_treeest5, fm_treeest6, fm_treeest7)
+
+model<-fm_treeest7
 summary(model)
-
-# plot model predictions against reality:
-par(mfrow=c(1,2), mar=c(4,4,2,2))
-plot(x=segtree$h_uav, y=segtree$h_lid)
-points(x=segtree_sub$h_uav, y=segtree_sub$h_lid, col='red')
-plot(x=fitted(model), y=segtree_sub$h_lid)
-
 par(mfrow=c(2,2), mar=c(4,4,2,2))
 plot(model)
 
 segtree_sub$pred<-fitted(model)
 
-# Plots out the GAM predictions:
+# plot model predictions against reality:
 par(mfrow=c(1,2), mar=c(4,4,2,2))
-plot(x=segtree_sub$h_uav, y=segtree_sub$pred); abline(0,1, col='red')
+plot(x=segtree$h_uav, y=segtree$h_lid)
+points(x=segtree_sub$h_uav, y=segtree_sub$h_lid, col='red')
+plot(x=fitted(model), y=segtree_sub$h_lid, xlim=c(0, max(segtree_sub$pred, na.rm=TRUE)))
+
+ggplot(segtree_sub, aes(x=pred, y=h_lid, color=normsobel, size=CR_m)) + geom_point() + geom_smooth()
+# The smallest tree we have predicted the height of is 10 m tall
+
+# Plots out the predictions against the orginal UAV CHM values:
+par(mfrow=c(1,2), mar=c(4,4,2,2))
+plot(x=segtree_sub$h_uav, y=segtree_sub$pred, xlim=c(0, max(segtree_sub$pred))); abline(0,1, col='red')
 hist(segtree_sub$h_uav-segtree_sub$pred)
 
 # Extracts the DSM values for the confidently segmented trees:
@@ -335,17 +347,13 @@ treepos<-SpatialPoints(treepos_xy, proj4string = crs(uav_dsm))
 treepos_dsm<-raster::extract(uav_dsm, treepos)
 treepos_uavchm<-raster::extract(uav_chm, treepos)
 treepos_lidchm<-raster::extract(lid_chm, treepos)
-treepos_dtm<-treepos_dsm-segtree_sub$pred
-treepos_dtm<-cbind(treepos_xy, z=treepos_dtm)
-
 # Calculates the estimated ground positions:
-#treepos_dtm<-segtree_sub$h_uav-segtree_sub$pred
 treepos_dtm<-treepos_dsm-segtree_sub$pred
-treepos_xy<-data.frame(x=segtree_sub$x, y=segtree_sub$y)
 treepos_dtm<-cbind(treepos_xy, z=treepos_dtm)
 
 predict_grid_by<-5 # The resolution of the predicted DTM
 imagery<-uav_chm_crop # The image to use in the prediction.
+k<-100
 
 # Estimating the ground 
 cat("\nFitting GAM\n")
@@ -389,6 +397,7 @@ lid_chm_crop<-crop(lid_chm, e2)
 lid_dtm_crop<-crop(lid_dtm, e2)
 uav_dtm_crop<-crop(uav_dtm, e2)
 
+par(mfrow=c(1,1))
 plot(uav_chm_crop)
 
 uav_trees2<-itcIMG_fast(uav_chm_crop+5, THRESHSeed=0.7, THRESHCrown=0.7, htod=htod_hrf, specT=2, lm.searchwin=NULL, blur=TRUE, gobble='off')
@@ -403,7 +412,6 @@ treepos_lidchm<-raster::extract(lid_chm, treepos)
 
 # Creates the prediction dataframe from the segmented trees:
 segtree<-data.frame(x=conf.trees$maxx, y=conf.trees$maxy, h_uav=treepos_uavchm, h_lid=treepos_lidchm, CR_m=conf.trees$CR_m, sobel=conf.trees$sobel, hbound=conf.trees$heightbound+conf.trees$mheightbound)
-hbound_lim<-0.3
 segtree_sub<-segtree[segtree$hbound>hbound_lim,]
 segtree_sub<-segtree_sub[complete.cases(segtree_sub),]
 
@@ -430,15 +438,12 @@ treepos_xy<-data.frame(x=segtree_sub$x, y=segtree_sub$y)
 treepos_dtm<-cbind(treepos_xy, z=treepos_dtm, w=segtree_sub$sobel) # You can try playing arond with what you weight by ...
                                                                   # I have tried h_uav, hbound and sobel, they are all pretty similar 
                                                                   # but sobel looks best
-
-
-
 predict_grid_by<-5 # The resolution of the predicted DTM
 imagery<-uav_chm_crop # The image to use in the prediction.
+k=100 # Seetng this too high makes the model too bumpy; It might be worth playing with it though
 
 # Estimating the ground 
 cat("\nFitting GAM\n")
-k=100 # Seetng this too high makes the model too bumpy; It might be worth playing with it though
 est.dtm <- mgcv::gam(z ~ s(x, y, k=k), data=treepos_dtm, weights=w/mean(w)) # fit the 2D spline.
 summary(est.dtm)
 # Create a raster with the predicted values
