@@ -35,8 +35,8 @@
 
 # Is the gaussian blur necessary?
 
-#TRESHSeed=0.45 # Proportional height relative to tree maximum.
-#TRESHCrown=0.55 # Proportional height relative to tree mean.
+#THRESHSeed=0.45 # Proportional height relative to tree maximum.
+#THRESHCrown=0.55 # Proportional height relative to tree mean.
 #DIST=8 # Distance in pixels from tree maximum.
 #specT=2 # Minimum height in m for tree or crown.
 
@@ -87,11 +87,25 @@ edge.dist<-function(z, scale, htod_lut, tau)
 }
 
 #imagery=uav_chm
+imagery<-uav_chm_crop+5; THRESHSeed=0.7; THRESHCrown=0.7; specT=2
 # Extracts just the locations of the tree maxima:
-itcIMG_fast<-function (imagery = NULL, TRESHSeed, 
-TRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
+itcIMG_fast<-function (imagery = NULL, THRESHSeed, 
+THRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
 {
   # !!! You need to make some appropriate checks of the arguments here !!!
+  
+  cat('finding sobel edges\n')
+  # Calculating edge strength using a Sobel edge detector:
+  kernX<-matrix(c(-1,-2,-1,0,0,0,1,2,1), 3, 3)
+  kernY<-matrix(c(-1,-2,-1,0,0,0,1,2,1), 3, 3, byrow=TRUE)
+  im_sobel <- raster::focal(imagery, w = matrix(1, 3, 3), 
+                            fun = function(x) {
+                              sqrt(sum(x* kernX)^2 + sum(x* kernY)^2)
+                            })
+  plot(im_sobel, colNA='red')
+  # I have chosen to run the sobel before the blur because the edges seem much more crisp that way
+  #... not what I thought would happen but there you go.
+  
   cat('Blurring image\n')
   # Blurs the chm:
   if(blur)
@@ -101,13 +115,15 @@ TRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
                              mean(x, na.rm = T)
                            })
   }
+
   cat('Extracting matrix\n')
   # Extracts the image data as a matrix:
-  Max <- matrix(dim(imagery)[2], dim(imagery)[1], data = imagery[, 
-                                                                 ], byrow = FALSE)
+  Max <- matrix(dim(imagery)[2], dim(imagery)[1], data = imagery[,], byrow = FALSE)
+  Sobel <- matrix(dim(imagery)[2], dim(imagery)[1], data = im_sobel[,], byrow = FALSE)
   cat('Preparing data structures\n')
   # Flips the image the right way again:
   Max <- Max[1:dim(imagery)[2], dim(imagery)[1]:1]
+  Sobel <- Sobel[1:dim(imagery)[2], dim(imagery)[1]:1]
   Gnew <- Max     # Copies the max matrix.
   Max[, ] <- 0    # Sets max to 0s. This will be used later for storing ...
   Index <- Max    # Copies max again.
@@ -163,8 +179,9 @@ TRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
   length.II<-nrow(II)
   coordCrown<-matrix(NA, nrow=length.total, ncol=2, dimnames=list(NULL, c('row', 'col')))
   coordSeeds<-matrix(NA, nrow=length.total, ncol=2, dimnames=list(NULL, c('row', 'col')))
+  sobel_mean<-vector('numeric', length=length.total)
   treeHeights<-vector('numeric', length=length.total)
-  boundcount<-matrix(0, nrow=length.total, ncol=4, dimnames=list(NULL, c('crown2crown', 'allombound', 'heightbound', 'mheightbound')))
+  boundcount<-matrix(0, nrow=length.total, ncol=5, dimnames=list(NULL, c('crown2crown', 'allombound', 'heightbound', 'mheightbound', 'sobelbound')))
   tree.ind<-vector(length.total, mode='numeric')
   
   # Works through each pixel one by one:
@@ -233,6 +250,7 @@ TRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
         # { # So longs as the pixel is not right on the boundary; !!! this might need to be changed depending on window size.
         
         rvSeed <- Gnew[coordSeed] # Extracts the tree height.
+        rvSobel <- rvSeed * (1-THRESHSeed) * 4
         #rvCrown <- mean(Gnew[coordCrown[,1]+nrow(Gnew)*(coordCrown[,2]-1)], na.rm = T) # Extracts the mean tree height.
         crownHeights<-Gnew[matrix(coordCrown[crown.indSeed:crown.ind,], ncol=2, dimnames=list(NULL, c('row', 'col')))]
         rvCrown <- mean(crownHeights) # Extracts the mean tree height.
@@ -240,24 +258,32 @@ TRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
         # You could make this more efficient using weighted means but whatever; it's way less readable.
         
         # Makes a matrix of the coordinates and chm values for the adjacent cells (surrounding the focal pixel).
-        filData <- matrix(4, 4, data = 0)
+        filData <- matrix(4, 5, data = 0)
         filData[1, 1] <- r - 1
         filData[1, 2] <- k
         filData[1, 3] <- Gnew[r - 1, k]
         filData[1, 4] <- Check[r - 1, k]
+        filData[1, 5] <- Sobel[r - 1, k]
         filData[2, 1] <- r
         filData[2, 2] <- k - 1
         filData[2, 3] <- Gnew[r, k - 1]
         filData[2, 4] <- Check[r, k - 1]
+        filData[2, 5] <- Sobel[r, k - 1]
         filData[3, 1] <- r
         filData[3, 2] <- k + 1
         filData[3, 3] <- Gnew[r, k + 1]
         filData[3, 4] <- Check[r, k + 1]
+        filData[3, 5] <- Sobel[r, k + 1]
         filData[4, 1] <- r + 1
         filData[4, 2] <- k
         filData[4, 3] <- Gnew[r + 1, k]
         filData[4, 4] <- Check[r + 1, k]
+        filData[4, 5] <- Sobel[r + 1, k]
         
+        # A FUDGE to fix NA instances in the sobel
+        filData[is.na(filData[,5]),5]<-0
+        
+        filData.CHK<<-filData
         # Calculates distance of pixels from the focal pixel
         fil.dists<-as.matrix(dist(rbind(coordSeed, filData[,1:2])))[1,-1]
         # Calculates the crown confidence envelope
@@ -267,30 +293,36 @@ TRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
         # Checks which (if any) of the values are greater than the max or mean tree heights adjusted by the thresholds.
         # and less than 5% taller than the max tree height.
         # and the euclidean distance from the maximum crown radius is less than the specified DIST.
-        GFIL <- (filData[, 3] > (rvSeed * TRESHSeed) & 
-                   (filData[, 3] > (rvCrown * TRESHCrown)) & 
+        GFIL <- (filData[, 3] > (rvSeed * THRESHSeed) & 
+                   (filData[, 3] > (rvCrown * THRESHCrown)) & 
                    (filData[, 3] <= (rvSeed + (rvSeed * 0.05))) &
                    (fil.dists<crownrad.THRESH) &
-                   (filData[,4] == 0) )#&
-        #           (filData[,3] < Crown_lower | filData[,3] > Crown_upper) )
+                   (filData[,4] == 0) &
+                   (filData[,5] < rvSobel))
         
         # Storing some information about the reasons for segmentation according to the parameters:
-        # pixels that are not in a crown:
         boundcount[ind,1]<- boundcount[ind,1] + sum(!(filData[,4] %in% c(0,ind))) # pixel that is within another tree crown
         boundcount[ind,2]<- boundcount[ind,2] + sum(fil.dists >= crownrad.THRESH &
                                                       filData[,4] == 0)
-        boundcount[ind,3]<- boundcount[ind,3] + sum(filData[, 3] <= (rvSeed * TRESHSeed) &
+        
+        hb<- boundcount[ind,3] + sum(filData[, 3] <= (rvSeed * THRESHSeed) &
                                                       filData[,4] == 0 &
                                                       fil.dists < crownrad.THRESH)
-        boundcount[ind,4]<- boundcount[ind,4] + sum(filData[, 3] <= (rvCrown * TRESHCrown) &
+        mhb<- boundcount[ind,4] + sum(filData[, 3] <= (rvCrown * THRESHCrown) &
                                                       filData[,4] == 0 &
                                                       fil.dists < crownrad.THRESH &
-                                                      filData[, 3] > (rvSeed * TRESHSeed))
-        #boundcount[ind,5]<- boundcount[ind,5] + sum(filData[, 3] > (rvCrown * TRESHCrown) &
-        #                                              filData[,4] == 0 &
-        #                                              fil.dists < crownrad.THRESH &
-        #                                              filData[, 3] > (rvSeed * TRESHSeed) &
-        #                                              (filData[,3]) < Crown_lower | filData[,3]) > Crown_upper))
+                                                      filData[, 3] > (rvSeed * THRESHSeed))
+        sb<- boundcount[ind,5] + sum(filData[, 5] > rvSobel) # This whole bit needs refactoring. I don't think it's accurate.
+        
+        GFIL.CHK<<-GFIL
+        
+        if(any(!GFIL))
+        {
+          sobel_weights<-c(sum(boundcount[ind,3:4]), rep(1, sum(!GFIL[3:4])))
+          sobel_mean[ind]<-weighted.mean(c(sobel_mean[ind], filData[3:4, 5][!GFIL[3:4]]), w=sobel_weights)
+        }
+        boundcount[ind,3]<- hb
+        boundcount[ind,4]<- mhb
         
         newCrown <- matrix(filData[GFIL, 1:2],ncol=2, dimnames=list(NULL, c('row', 'col'))) # Subsets filData by the decision tree output.
         
@@ -315,10 +347,15 @@ TRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
   tree.ind<-tree.ind[1:crown.total]
   coordCrown<-coordCrown[1:crown.total,] 
   boundcount<-boundcount[1:Ntrees,]
+  sobel_mean<-sobel_mean[1:Ntrees]
   
   # Convert boundary condition counts to proportions:
-  boundcount<-prop.table(boundcount[,1:4], 1)
+  boundcount<-cbind(prop.table(boundcount[,1:4], 1), boundcount[,5])
+  # !!!!! This needs to be fixed !!!!!
   
+  #plot(y=sobel_mean,x=treeHeights)
+  #plot(y=sobel_mean/(4*treeHeights),x=rowSums(boundcount[,3:4]))
+  #hist(sobel_mean/(4*treeHeights), breaks=30)
   #plot(coordCrown, col=tree.ind, pch=16)
   
   if(gobble=='on')
@@ -466,6 +503,8 @@ TRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
   m3.shp[treepos.ind, "allombound"]<-boundcount[,2]
   m3.shp[treepos.ind, "heightbound"]<-boundcount[,3]
   m3.shp[treepos.ind, "mheightbound"]<-boundcount[,4]
+  m3.shp[treepos.ind, "sobelbound"]<-boundcount[,5]
+  m3.shp[treepos.ind, "sobel"]<-sobel_mean
   
   HCbuf <- rgeos::gBuffer(m3.shp, width = -res(imagery)[1]/2, byid = T) 
   ITCcv <- rgeos::gConvexHull(HCbuf, byid = T)
