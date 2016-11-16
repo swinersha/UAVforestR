@@ -62,6 +62,8 @@ build_dtm<-function(imagery, grid_by, k, predict_grid_by, ...)
   grid_by<-round(grid_by/res(imagery)[1])
   row_ind<-0:((nrow(imagery) %/% grid_by))*grid_by +1
   col_ind<-0:((ncol(imagery) %/% grid_by))*grid_by +1
+  row_ind<-row_ind[row_ind<nrow(imagery)] # excludes any values that are out of range
+  col_ind<-col_ind[col_ind<ncol(imagery)] # ...
   xy_grid<-expand.grid(row_ind, col_ind)
 
   min_vals_x<-vector('integer', length=nrow(xy_grid))
@@ -77,11 +79,11 @@ build_dtm<-function(imagery, grid_by, k, predict_grid_by, ...)
       cat(paste((which(progress)-1)*10), '%   ', sep='')
     # Ensure the grid doesn't exceed the size of the raster:
     if((xy_grid[i,2] + grid_by) > dim(imagery)[2])
-      grid_by_x<-(ncol(imagery) %% grid_by) -1
+      grid_by_x<-(ncol(imagery)+1 %% grid_by) -1
     else
       grid_by_x<-grid_by
     if((xy_grid[i,1] + grid_by) > dim(imagery)[1])
-      grid_by_y<-(nrow(imagery) %% grid_by) -1
+      grid_by_y<-(nrow(imagery)+1 %% grid_by) -1
     else
       grid_by_y<-grid_by
     
@@ -130,6 +132,9 @@ grid_mean<-function(imagery, grid_by, ...)
   grid_by<-round(grid_by/res(imagery)[1])
   row_ind<-0:((nrow(imagery) %/% grid_by))*grid_by +1
   col_ind<-0:((ncol(imagery) %/% grid_by))*grid_by +1
+  row_ind<-row_ind[row_ind<nrow(imagery)] # excludes any values that are out of range
+  col_ind<-col_ind[col_ind<ncol(imagery)] # ...
+  
   xy_grid<-expand.grid(row_ind, col_ind)
   
   mean_vals<-vector('numeric', length=nrow(xy_grid))
@@ -143,11 +148,11 @@ grid_mean<-function(imagery, grid_by, ...)
       cat(paste((which(progress)-1)*10), '%   ', sep='')
     # Ensure the grid doesn't exceed the size of the raster:
     if((xy_grid[i,2] + grid_by) > dim(imagery)[2])
-      grid_by_x<-(ncol(imagery) %% grid_by) -1
+      grid_by_x<-(ncol(imagery)+1 %% grid_by) -1
     else
       grid_by_x<-grid_by
     if((xy_grid[i,1] + grid_by) > dim(imagery)[1])
-      grid_by_y<-(nrow(imagery) %% grid_by) -1
+      grid_by_y<-(nrow(imagery)+1 %% grid_by) -1
     else
       grid_by_y<-grid_by
     

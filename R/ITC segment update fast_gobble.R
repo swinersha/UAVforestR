@@ -87,10 +87,10 @@ edge.dist<-function(z, scale, htod_lut, tau)
 }
 
 #imagery=uav_chm
-imagery<-uav_chm_crop+5; THRESHSeed=0.7; THRESHCrown=0.7; specT=2; lm.searchwin=NULL
+#imagery<-uav_chm_crop+5; THRESHSeed=0.7; THRESHCrown=0.7; specT=2; lm.searchwin=NULL
 # Extracts just the locations of the tree maxima:
 itcIMG_fast<-function (imagery = NULL, THRESHSeed, 
-THRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
+THRESHCrown, htod, specT, SOBELstr, lm.searchwin=NULL, blur=TRUE, gobble='off')
 {
   # !!! You need to make some appropriate checks of the arguments here !!!
   
@@ -105,7 +105,7 @@ THRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
                                 y<-0
                               return(y)
                             })
-  plot(im_sobel, colNA='red')
+  #plot(im_sobel, colNA='red')
   # I have chosen to run the sobel before the blur because the edges seem much more crisp that way
   #... not what I thought would happen but there you go.
   
@@ -184,7 +184,7 @@ THRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
   coordSeeds<-matrix(NA, nrow=length.total, ncol=2, dimnames=list(NULL, c('row', 'col')))
   sobel_mean<-vector('numeric', length=length.total)
   treeHeights<-vector('numeric', length=length.total)
-  boundcount<-matrix(0, nrow=length.total, ncol=5, dimnames=list(NULL, c('crown2crown', 'allombound', 'heightbound', 'mheightbound', 'sobelbound')))
+  boundcount<-matrix(0, nrow=length.total, ncol=5, dimnames=list(NULL, c('hbound', 'sobelbound', 'crownbound', 'allombound', 'tallerbound')))
   tree.ind<-vector(length.total, mode='numeric')
   
   # Works through each pixel one by one:
@@ -253,7 +253,7 @@ THRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
         # { # So longs as the pixel is not right on the boundary; !!! this might need to be changed depending on window size.
         
         rvSeed <- Gnew[coordSeed] # Extracts the tree height.
-        rvSobel <- rvSeed * (1-THRESHSeed) * 2 # This multiplier changes the sensitivity of the sobel segment
+        rvSobel <- rvSeed * (1-THRESHSeed) * SOBELstr # This multiplier changes the sensitivity of the sobel segment
         #rvCrown <- mean(Gnew[coordCrown[,1]+nrow(Gnew)*(coordCrown[,2]-1)], na.rm = T) # Extracts the mean tree height.
         crownHeights<-Gnew[matrix(coordCrown[crown.indSeed:crown.ind,], ncol=2, dimnames=list(NULL, c('row', 'col')))]
         rvCrown <- mean(crownHeights) # Extracts the mean tree height.
@@ -299,42 +299,37 @@ THRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
                    (fil.dists<crownrad.THRESH) &
                    (filData[,4] == 0) &
                    (filData[,5] < rvSobel))
-        
-        #if(any(filData[,5] > rvSobel))
-        #  break
-        
-        # Storing some information about the reasons for segmentation according to the parameters:
-        boundcount[ind,1]<- boundcount[ind,1] + sum(!(filData[,4] %in% c(0,ind))) # pixel that is within another tree crown
-        boundcount[ind,2]<- boundcount[ind,2] + sum(fil.dists >= crownrad.THRESH &
-                                                      filData[,4] == 0)
-        
-        hb<- boundcount[ind,3] + sum(filData[, 3] <= (rvSeed * THRESHSeed) &
-                                                      filData[,4] == 0 &
-                                                      fil.dists < crownrad.THRESH)
-        mhb<- boundcount[ind,4] + sum(filData[, 3] <= (rvCrown * THRESHCrown) &
-                                                      filData[,4] == 0 &
-                                                      fil.dists < crownrad.THRESH &
-                                                      filData[, 3] > (rvSeed * THRESHSeed))
-        boundcount[ind,5]<- boundcount[ind,5] + sum(filData[, 3] > (rvCrown * THRESHCrown) &
-                                       filData[,4] == 0 &
-                                       fil.dists < crownrad.THRESH &
-                                       filData[, 3] > (rvSeed * THRESHSeed) &
-                                       filData[, 5] > rvSobel)
-        
-        GFIL.CHK<<-GFIL
-        
-        if(any(!GFIL))
-        {
-          sobel_weights<-c(sum(boundcount[ind,3:4]), rep(1, sum(!GFIL[3:4])))
-          sobel_mean[ind]<-weighted.mean(c(sobel_mean[ind], filData[3:4, 5][!GFIL[3:4]]), w=sobel_weights)
-        }
-        boundcount[ind,3]<- hb
-        boundcount[ind,4]<- mhb
-        
         newCrown <- matrix(filData[GFIL, 1:2],ncol=2, dimnames=list(NULL, c('row', 'col'))) # Subsets filData by the decision tree output.
         
-        # Adds the pixels that pass the test to the crown and check them off as done.
-        nNew<-sum(GFIL)
+        # Storing some information about the reasons for segmentation according to the parameters:
+        HB<-filData[, 3] <= (rvSeed * THRESHSeed) # pixel less than max height threshold
+        MHB<-filData[, 3] <= (rvCrown * THRESHCrown) # pixel less than mean height threshold
+        SEB<-filData[, 5] >= rvSobel # Pixel greater than edge threshold
+        CRB<-!(filData[,4] %in% c(0,ind)) # pixel in another tree crown
+        ADB<-fil.dists >= crownrad.THRESH # pixel greater than allometric threshold
+        IHB<-filData[, 3] > (rvSeed + (rvSeed * 0.05)) # pixel taller than tree maximum
+        
+        # Workds out the number of boundary conditions for each:
+        nhb<-sum(HB | MHB) # Height boundary
+        nsb<-sum(SEB & !(HB | MHB)) # Sobel boundary
+        ncb<-sum(CRB & !(HB | MHB| SEB)) # Crown boundary
+        nab<-sum(ADB & !(HB | MHB | SEB | CRB)) # Allometric boundary
+        ntb<-sum(IHB & !(HB | MHB | SEB | CRB | ADB)) # Taller tree boundary
+        
+        if(any(SEB | HB | MHB))
+        {
+          sobel_weights<-c(sum(boundcount[ind,3:5]), rep(1, sum(nhb+nsb)))
+          sobel_mean[ind]<-weighted.mean(c(sobel_mean[ind], filData[(SEB | HB | MHB), 5]), w=sobel_weights)
+        }
+        
+        boundcount[ind,1]<- boundcount[ind,1] + nhb
+        boundcount[ind,2]<- boundcount[ind,2] + nsb
+        boundcount[ind,3]<- boundcount[ind,3] + ncb
+        boundcount[ind,4]<- boundcount[ind,4] + nab
+        boundcount[ind,5]<- boundcount[ind,5] + ntb
+        
+        nNew<-sum(GFIL) # The number of new crown pixels
+        # Adds the pixels that pass the test to the crown and checks them off as done.
         if (nNew > 0) # Does this need to be 3?
         {
           Check[newCrown]<-ind
@@ -506,14 +501,14 @@ THRESHCrown, htod, specT, lm.searchwin=NULL, blur=TRUE, gobble='off')
   m3.shp[treepos.ind, "CH_mean"]<-treeHeights_mean
   m3.shp[treepos.ind, "CH_max"]<-treeHeights
   # The proportion of the total edge violations caused by each boundary condition:
-  m3.shp[treepos.ind, "crown2crown"]<-boundcount[,1]
-  m3.shp[treepos.ind, "allombound"]<-boundcount[,2]
-  m3.shp[treepos.ind, "heightbound"]<-boundcount[,3]
-  m3.shp[treepos.ind, "mheightbound"]<-boundcount[,4]
-  m3.shp[treepos.ind, "sobelbound"]<-boundcount[,5]
+  m3.shp[treepos.ind, "hbound"]<-boundcount[,1]
+  m3.shp[treepos.ind, "sobelbound"]<-boundcount[,2]
+  m3.shp[treepos.ind, "crownbound"]<-boundcount[,3]
+  m3.shp[treepos.ind, "allombound"]<-boundcount[,4]
+  m3.shp[treepos.ind, "tallerbound"]<-boundcount[,5]
   m3.shp[treepos.ind, "sobel"]<-sobel_mean
   
-  HCbuf <- rgeos::gBuffer(m3.shp, width = -res(imagery)[1]/2, byid = T) 
+    HCbuf <- rgeos::gBuffer(m3.shp, width = -res(imagery)[1]/2, byid = T) 
   ITCcv <- rgeos::gConvexHull(HCbuf, byid = T)
   ITCcvSD <- sp::SpatialPolygonsDataFrame(ITCcv, data = HCbuf@data, match.ID = F)
   #ITCcvSD <- sp::SpatialPolygonsDataFrame(HCbuf, data = HCbuf@data, match.ID = F)

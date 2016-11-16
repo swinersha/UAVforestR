@@ -48,7 +48,6 @@ crown_FD<-function(om, chm, poly, plot='on')
   return(data.frame(tree.id=i, mRed, mGreen, mBlue, sdRed, sdGreen, sdBlue, pBlack, pWhite))
 }
 
-
 source("R/imgPoly_match.R")
 om.path<-'/Users/Tom/Documents/Work/RSPB/HRF/Drone/Missions/16 Block B/OM 4 cm cc blocked/OM 4 cm cc blocked'
 chm.path<-'/Users/Tom/Documents/Work/RSPB/HRF/Drone/Missions/16 Block B/DSM 2'
