@@ -17,6 +17,7 @@ library(car)
 source("R/build_dtm.R")
 source("R/ITC segment update fast_gobble.R")
 source("R/gdal_polygonizeR.R")
+source("R/dtm_model_predict.R")
 # Load the UAV and LiDAR images
 uav_dsm<-raster("data/uav_dsm_matched.tif")
 uav_dtm<-raster("data/uav_dtm_matched.tif")
@@ -99,7 +100,7 @@ chm_diff<-uav_chm-lid_chm
 # Looking at the numeric differences
 par(mfrow=c(1,1), mar=c(4,4,2,2)); hist(chm_diff); median(values(chm_diff), na.rm=TRUE); mean(values(chm_diff), na.rm=TRUE)
 
-par(mfrow=c(1,3), mar=c(2,2,0,0)); plot(lid_chm, colNA='black'); plot(uav_chm, colNA='black'); plot(chm_diff, colNA='black')
+par(mfrow=c(1,3), mar=c(2,2,0,0)); plot(lid_chm, colNA='black', axes=FALSE); plot(uav_chm, colNA='black', axes=FALSE); plot(chm_diff, colNA='black', axes=FALSE)
 #zoom(chm_diff)
 
 #------------------------------------------------
@@ -133,6 +134,22 @@ plot(lid_chm_grid-uav_chm_grid, col=col.pal, colNA="black", breaks=col.breaks, m
 # Another couple of plots
 par(mfrow=c(1,4), mar=c(2,2,0,0)); plot(lid_dtm); plot(uav_dtm); plot(chm_grid_diff); plot(chm_diff)
 par(mfrow=c(1,4), mar=c(2,2,0,0)); plot(lid_chm); plot(uav_chm); plot(chm_grid_diff); plot(cov_chm)
+
+# Figure plot: ~~~~~~~~~~~~~~~~~~~~~~~~~
+col.pal_chm<-c("#8D99AE", colorRampPalette(c("white", "goldenrod1", "forestgreen", "limegreen"))( 6 ))
+col.breaks_chm<-seq(-10, 60, length=length(col.pal_chm)+1)
+col.pal_chmdiff<-colorRampPalette(c('#2B2D42', '#8D99AE', "#EDF2F4", '#D90429'))( 8 )
+col.breaks_chmdiff<-seq(-15, 5, length=length(col.pal_chmdiff)+1)
+
+col.pal_chmdiff<- colorRampPalette(c("limegreen", "forestgreen", "white", "goldenrod1"))( 8 )
+col.breaks_chmdiff<-seq(-15, 5, length=length(col.pal_chmdiff)+1)
+
+par(mfrow=c(1,3), mar=c(2,2,0,0))
+plot(lid_chm, col=col.pal_chm, breaks=col.breaks_chm, colNA='black', axes=FALSE)
+plot(uav_chm, col=col.pal_chm, breaks=col.breaks_chm, colNA='black', axes=FALSE)
+plot(chm_grid_diff, col=col.pal_chmdiff, breaks=col.breaks_chmdiff, colNA='black', axes=FALSE)
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 # The average difference between the UAV and LiDAR CHMs
 par(mfrow=c(1,1)); hist(values(chm_grid_diff))
@@ -482,6 +499,91 @@ plot(chm_pred, col=col.pal, breaks=col.breaks, colNA='black')
 plot(uav_trees2_conf, add=TRUE, border='blue')
 
 
+#--------------------------------------------
+# Trying it on the whole area:
+#--------------------------------------------
+
+
+CH_lim<-5
+hbound_lim<-0.4
+sobel_lim<--5
+predict_grid_by<-5
+
+par(mfrow=c(1,1))
+plot(uav_chm)
+
+uav_trees_all<-itcIMG_fast(uav_chm+5, THRESHSeed=0.7, THRESHCrown=0.7, htod=htod_hrf, specT=2, SOBELstr = 2, lm.searchwin=NULL, blur=TRUE, gobble='off')
+uav_trees_all$normsobel<-log(uav_trees_all$sobel/uav_trees_all$CH_max)
+uav_trees_all$logsobel<-log(uav_trees_all$sobel)
+
+# Extracts only the confidently segmented trees using the same parameters as
+# when fitting the model to the LiDAR data originally:
+conf.trees_all<-uav_trees_all[which((uav_trees_all$hbound+uav_trees_all$sobelbound)>hbound_lim & 
+                               uav_trees_all$CH_max>CH_lim),]
+
+# Estimating the new DTM using the segmented trees and the trained model:
+# !!! It is necessary to set K correctly...
+dtm_pred<-dtm_model_predict(trees=conf.trees_all, model=model, dsm=uav_dsm, chm=uav_chm, predict_grid_by=5, k=100)
+
+# Calculate the new CHM:
+chm_pred<-uav_dsm-dtm_pred
+uav_trees_all_conf<-uav_trees_all[which((uav_trees_all$hbound+uav_trees_all$sobelbound)>0.4),]
+
+col.pal<-colorRampPalette(c("white", "goldenrod1", "forestgreen", "limegreen"))( 10 )
+par(mfrow=c(2,3), mar=c(2,2,2,2))
+col.breaks<-seq(20, 50, length=length(col.pal)+1)
+plot(lid_dtm, col=col.pal, breaks=col.breaks, colNA='black')
+plot(uav_dtm, col=col.pal, breaks=col.breaks, colNA='black')
+plot(dtm_pred, col=col.pal, breaks=col.breaks, colNA='black')
+col.breaks<-seq(0, 60, length=length(col.pal)+1)
+plot(crop(lid_chm, chm_pred), col=col.pal, breaks=col.breaks, colNA='black')
+plot(uav_chm, col=col.pal, breaks=col.breaks, colNA='black')
+plot(chm_pred, col=col.pal, breaks=col.breaks, colNA='black')
+
+par(mfrow=c(1,1), mar=c(2,2,2,2))
+plot(chm_pred, col=col.pal, breaks=col.breaks, colNA='black')
+plot(uav_trees_all_conf, add=TRUE, border='blue')
+
+
+
+
+
+
+
+#--------------------
+# Checking again with the gridded values:
+
+lid_chm_crop_grid<-grid_mean(lid_chm_crop, grid_by=25) # for the LiDAR CHM
+uav_chm_crop_grid<-grid_mean(uav_chm_crop, grid_by=25) # for the new predicted CHM
+chm_pred_grid<-grid_mean(chm_pred, grid_by=25) # for the new predicted CHM
+
+
+par(mfrow=c(1,2))
+plot(lid_chm_crop)
+plot(chm_pred)
+
+col.breaks<-seq(00, 30, length=length(col.pal)+1)
+par(mfrow=c(1,2))
+plot(lid_chm_crop_grid, col=col.pal, breaks=col.breaks, colNA='black')
+plot(chm_pred_grid, col=col.pal, breaks=col.breaks, colNA='black')
+
+chm_grid_diff<-lid_chm_crop_grid-uav_chm_crop_grid # Calculates the difference between the UAV and lidar CHMs when gridded
+chm_pred_grid_diff<-lid_chm_crop_grid-chm_pred_grid # Calculates the difference between the UAV and lidar CHMs when gridded
+
+# Calculat the RMSE:
+sqrt(mean((values(lid_chm_crop_grid)-values(uav_chm_crop_grid))^2, na.rm=TRUE)) # Photoscan DTM
+sqrt(mean((values(lid_chm_crop_grid)-values(chm_pred_grid))^2, na.rm=TRUE)) # PEstimated DTM.
+
+# Plots this:
+col.pal<-colorRampPalette(c(pokepal[1], "white", pokepal[2]))( 10 )
+col.breaks<-seq(-12, 12, length=length(col.pal)+1)
+par(mfrow=c(1,3), mar=c(2,2,2,2))
+plot(chm_grid_diff, col=col.pal, colNA="black", breaks=col.breaks, main='UAV CHM error')
+plot(chm_pred_grid_diff, col=col.pal, colNA="black", breaks=col.breaks, main='CHM prediction error')
+col.pal<-colorRampPalette(c("white", "goldenrod1", "forestgreen", "limegreen"))( 10 )
+col.breaks<-seq(0, 60, length=length(col.pal)+1)
+plot(chm_pred, col=col.pal, breaks=col.breaks, colNA='black')
+plot(uav_trees2_conf, add=TRUE, border='blue')
 
 
 
