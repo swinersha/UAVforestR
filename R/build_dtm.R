@@ -126,9 +126,10 @@ build_dtm<-function(imagery, grid_by, k, predict_grid_by, ...)
 #--------------------------------------
 # A function to build a DTM by extracting the minimum values within grid cells
 # These are then averaged using a 2D GAM.
-
+imagery=lid_chm; grid_by=25
 grid_mean<-function(imagery, grid_by, type='raster', ...)
 {
+  grid_by_map<-grid_by # stored for conversion back to map scale
   grid_by<-round(grid_by/res(imagery)[1])
   row_ind<-0:((nrow(imagery) %/% grid_by))*grid_by +1
   col_ind<-0:((ncol(imagery) %/% grid_by))*grid_by +1
@@ -167,16 +168,19 @@ grid_mean<-function(imagery, grid_by, type='raster', ...)
       mean_vals[i]<-mean(blk, na.rm=TRUE)
     }
   }
+  
   # Create a raster with the predicted values
+  # Sets xy_grid to the map scale:
+  xy_grid<-expand.grid(1:length(row_ind), 1:length(col_ind))
   colnames(xy_grid)<-c('y', 'x')
-  xy_grid$x<-xy_grid$x*grid_by+extent(imagery)@xmin
-  xy_grid$y<-extent(imagery)@ymax-xy_grid$y*grid_by
+  xy_grid$x<-xy_grid$x*grid_by_map+extent(imagery)@xmin
+  xy_grid$y<-extent(imagery)@ymax-xy_grid$y*grid_by_map
   xy_grid<-data.frame(x=xy_grid$x, y=xy_grid$y, mean_vals)
-  if(type=='grid')
-    return(xy_grid)
   sp::coordinates(xy_grid)=~x+y # convert to gridded spatial object
   sp::proj4string(xy_grid)<-raster::crs(imagery)
   sp::gridded(xy_grid) <-TRUE
+  if(type=='grid')
+    return(xy_grid)
   xy_raster <- raster::raster(xy_grid) # convert to raster
   if(type=='raster')
     return(xy_raster)
