@@ -127,7 +127,7 @@ build_dtm<-function(imagery, grid_by, k, predict_grid_by, ...)
 # A function to build a DTM by extracting the minimum values within grid cells
 # These are then averaged using a 2D GAM.
 
-grid_mean<-function(imagery, grid_by, ...)
+grid_mean<-function(imagery, grid_by, type='raster', ...)
 {
   grid_by<-round(grid_by/res(imagery)[1])
   row_ind<-0:((nrow(imagery) %/% grid_by))*grid_by +1
@@ -175,7 +175,11 @@ grid_mean<-function(imagery, grid_by, ...)
   sp::coordinates(xy_grid)=~x+y # convert to gridded spatial object
   sp::proj4string(xy_grid)<-raster::crs(imagery)
   sp::gridded(xy_grid) <-TRUE
-  xy_grid <- raster::raster(xy_grid) # convert to raster
-
-  return(xy_grid)
+  xy_raster <- raster::raster(xy_grid) # convert to raster
+  
+  if(type=='raster')
+    return(xy_raster)
+  if(type=='grid')
+    return(xy_grid)
+  
 }
