@@ -172,14 +172,12 @@ grid_mean<-function(imagery, grid_by, type='raster', ...)
   xy_grid$x<-xy_grid$x*grid_by+extent(imagery)@xmin
   xy_grid$y<-extent(imagery)@ymax-xy_grid$y*grid_by
   xy_grid<-data.frame(x=xy_grid$x, y=xy_grid$y, mean_vals)
+  if(type=='grid')
+    return(xy_grid)
   sp::coordinates(xy_grid)=~x+y # convert to gridded spatial object
   sp::proj4string(xy_grid)<-raster::crs(imagery)
   sp::gridded(xy_grid) <-TRUE
   xy_raster <- raster::raster(xy_grid) # convert to raster
-  
   if(type=='raster')
     return(xy_raster)
-  if(type=='grid')
-    return(xy_grid)
-  
 }
