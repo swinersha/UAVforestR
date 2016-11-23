@@ -126,8 +126,8 @@ build_dtm<-function(imagery, grid_by, k, predict_grid_by, ...)
 #--------------------------------------
 # A function to build a DTM by extracting the minimum values within grid cells
 # These are then averaged using a 2D GAM.
-imagery=lid_chm; grid_by=25
-grid_mean<-function(imagery, grid_by, type='raster', ...)
+#imagery=lid_chm; grid_by=25
+grid_fun<-function(imagery, grid_by, type='raster', fun, ...)
 {
   grid_by_map<-grid_by # stored for conversion back to map scale
   grid_by<-round(grid_by/res(imagery)[1])
@@ -138,7 +138,7 @@ grid_mean<-function(imagery, grid_by, type='raster', ...)
   
   xy_grid<-expand.grid(row_ind, col_ind)
   
-  mean_vals<-vector('numeric', length=nrow(xy_grid))
+  y<-vector('numeric', length=nrow(xy_grid))
   #min_vals<-matrix(0, nrow=nrow(xy_grid), ncol=3)
   cat("Extracting gridded values\n")
   for(i in 1:nrow(xy_grid))
@@ -161,11 +161,11 @@ grid_mean<-function(imagery, grid_by, type='raster', ...)
     blk<-getValuesBlock(imagery, row=xy_grid[i,1], nrows=grid_by_y, col=xy_grid[i,2], ncols=grid_by_x, format='matrix')
     if(all(is.na(blk))) # Make sure there are some values:
     {
-      mean_vals[i]<-NA
+      y[i]<-NA
     }
     else # Find the lowest value and it's position:
     {
-      mean_vals[i]<-mean(blk, na.rm=TRUE)
+      y[i]<-fun(blk)
     }
   }
   
@@ -185,3 +185,4 @@ grid_mean<-function(imagery, grid_by, type='raster', ...)
   if(type=='raster')
     return(xy_raster)
 }
+
