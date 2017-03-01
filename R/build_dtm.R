@@ -126,7 +126,7 @@ build_dtm<-function(imagery, grid_by, k, predict_grid_by, ...)
 #--------------------------------------
 # A function to build a DTM by extracting the minimum values within grid cells
 # These are then averaged using a 2D GAM.
-imagery=chm_pred; grid_by=25; fun=gap_frac
+#imagery=chm_pred; grid_by=25; fun=gap_frac
 grid_fun<-function(imagery, grid_by, type='raster', fun, ...)
 {
   grid_by_map<-grid_by # stored for conversion back to map scale
@@ -165,7 +165,7 @@ grid_fun<-function(imagery, grid_by, type='raster', fun, ...)
     }
     else # Find the lowest value and it's position:
     {
-      y[i]<-gap_frac(blk)
+      y[i]<-fun(blk)
     }
   }
   
