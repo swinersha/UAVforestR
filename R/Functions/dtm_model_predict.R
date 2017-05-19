@@ -25,9 +25,9 @@ dtm_extract<-function(x, y, z.est, img){
   return(xyz)
 }
 
-x=conf_auto_uav$maxx; y=conf_auto_uav$maxy; z=conf_auto_uav$CH50
-img=uav_dsm;
-predict_grid_by=25;k=100
+#x=conf_auto_uav$maxx; y=conf_auto_uav$maxy; z=conf_auto_uav$CH50
+#img=uav_dsm;
+#predict_grid_by=25;k=100
 
 
 surface_predict<-function(xyz, img, predict_grid_by, k, type='response'){
