@@ -64,12 +64,20 @@ htod_hrf<-function(x, htor_lut, tau)
   return(rad*2)
 }
 
+htod_lookup<-function(x, lut, tau) 
+{
+  rad<-x
+  a<-lut[tau,'a']
+  b<-lut[tau,'b']
+  rad<-(exp(a) * x^b) 
+  return(rad*2)
+}
 
 # Calculates the window size when given the relationship between tree height and window size as a fitted model (fm.win)
 # and z the tree heights:
-allom.dist<-function(z, scale, htod_lut, tau)
+allom.dist<-function(z, scale)
 {
-  diam<-htod(z, htod_lut, tau)
+  diam<-htod(z)
   diam<-(diam/scale)
   win.size<-2*round((diam+1)/2)-1
   win.size[win.size<3]<-3
@@ -77,48 +85,28 @@ allom.dist<-function(z, scale, htod_lut, tau)
   return(win.size)
 }
 # A function to calculate the number of pixels distance to the edge
-edge.dist<-function(z, scale, htod_lut, tau)
+edge.dist<-function(z, scale)
 {
-  radius<-htod(z, htod_lut, tau)/2
+  radius<-htod(z)/2
   radius<-radius/scale
   pixels<-ceiling(radius)
   names(pixels)<-NULL
   return(pixels)
 }
 
-#imagery=uav_chm
-#imagery<-uav_chm_crop+5; THRESHSeed=0.7; THRESHCrown=0.7; specT=2; lm.searchwin=NULL
+#imagery=uav_chm_blur
+#im_sobel=uav_chm_sobel
+#THRESHSeed=0.7; THRESHCrown=0.7; specT=2; lm.searchwin=NULL; SOBELstr=2; can_text=NULL; cansize=20
+#htod=function(x) htod_lookup(x, lut=lut, tau=90)
+
 # Extracts just the locations of the tree maxima:
-itcIMG_fast<-function (imagery = NULL, THRESHSeed, 
-THRESHCrown, htod, specT, SOBELstr, lm.searchwin=NULL, blur=TRUE, gobble='off')
+itcIMG_fast<-function (imagery, im_sobel=NULL, THRESHSeed, 
+  THRESHCrown, htod, specT, SOBELstr, lm.searchwin=NULL, gobble='off', cantext='off', cansize=NULL)
 {
   # !!! You need to make some appropriate checks of the arguments here !!!
+  if(cantext=='on' & is.null(cansize))
+    stop('In itcIMG_fast cansize must not be NULL if cantext is on; please enter numberic value')
   
-  cat('finding sobel edges\n')
-  # Calculating edge strength using a Sobel edge detector:
-  kernX<-matrix(c(-1,-2,-1,0,0,0,1,2,1), 3, 3)
-  kernY<-matrix(c(-1,-2,-1,0,0,0,1,2,1), 3, 3, byrow=TRUE)
-  im_sobel <- raster::focal(imagery, w = matrix(1, 3, 3), 
-                            fun = function(x) {
-                              y<-sqrt(sum(x* kernX)^2 + sum(x* kernY)^2)
-                              if(is.na(y))
-                                y<-0
-                              return(y)
-                            })
-  #plot(im_sobel, colNA='red')
-  # I have chosen to run the sobel before the blur because the edges seem much more crisp that way
-  #... not what I thought would happen but there you go.
-  
-  cat('Blurring image\n')
-  # Blurs the chm:
-  if(blur)
-  {
-    imagery <- raster::focal(imagery, w = matrix(1, 3, 3), 
-                           fun = function(x) {
-                             mean(x, na.rm = T)
-                           })
-  }
-
   cat('Extracting matrix\n')
   # Extracts the image data as a matrix:
   Max <- matrix(dim(imagery)[2], dim(imagery)[1], data = imagery[,], byrow = FALSE)
@@ -143,8 +131,8 @@ THRESHCrown, htod, specT, SOBELstr, lm.searchwin=NULL, blur=TRUE, gobble='off')
   z<-Gnew[II[,1]+nrow(Gnew)*(II[,2]-1)] # extracts the tree heights from the matrix
   #z.pix<-z/res(imagery)[1] # converts heights in m to pixels
   #WinSize<-allom.dist(z.pix) # Finds the window size for each tree pixel in m
-  WinSize<-allom.dist(z, scale=res(imagery)[1], lut, tau=10)
-  pix2edge<-edge.dist(z, scale=res(imagery)[1], lut, tau=90) # Halfs the window size for subsetting by pixels far enough from the image edge
+  WinSize<-allom.dist(z, scale=res(imagery)[1]) #, lut, tau=10)
+  pix2edge<-edge.dist(z, scale=res(imagery)[1])#, lut, tau=90) # Halfs the window size for subsetting by pixels far enough from the image edge
   
   # Extracts only the pixels far enough from the image edge.
   II.ind<-II[, 1] > pix2edge & 
@@ -239,7 +227,8 @@ THRESHCrown, htod, specT, SOBELstr, lm.searchwin=NULL, blur=TRUE, gobble='off')
       coordSeed<-newCrown # The treeseed for the current crown.
       Check[newCrown]<-ind # and is checked off.
       rvCrown<-mean(Gnew[newCrown], na.rm = T) # Extracts the mean tree height.
-      crownrad.THRESH<-(htod(rvCrown, lut, tau=90)/2)/res(imagery)[1] # The crown radius in pixels
+      #crownrad.THRESH<-(htod(rvCrown, lut, tau=90)/2)/res(imagery)[1] # The crown radius in pixels
+      crownrad.THRESH<-(htod(x=rvCrown)/2)/res(imagery)[1] # The crown radius in pixels
       
       crown.total<-crown.ind  # A marker to keep track of the number of pixels still left to work on.
       
@@ -253,7 +242,8 @@ THRESHCrown, htod, specT, SOBELstr, lm.searchwin=NULL, blur=TRUE, gobble='off')
         # { # So longs as the pixel is not right on the boundary; !!! this might need to be changed depending on window size.
         
         rvSeed <- Gnew[coordSeed] # Extracts the tree height.
-        rvSobel <- rvSeed * (1-THRESHSeed) * SOBELstr # This multiplier changes the sensitivity of the sobel segment
+        rvSobel <- rvSeed * (1-THRESHSeed) * SOBELstr # This multiplier changes the sensitivity of the sobel segment; 
+        # it might be better if this is set to THRESHCrown
         #rvCrown <- mean(Gnew[coordCrown[,1]+nrow(Gnew)*(coordCrown[,2]-1)], na.rm = T) # Extracts the mean tree height.
         crownHeights<-Gnew[matrix(coordCrown[crown.indSeed:crown.ind,], ncol=2, dimnames=list(NULL, c('row', 'col')))]
         rvCrown <- mean(crownHeights) # Extracts the mean tree height.
@@ -469,6 +459,43 @@ THRESHCrown, htod, specT, SOBELstr, lm.searchwin=NULL, blur=TRUE, gobble='off')
   Crowns[coordCrown]<-tree.ind
   Index[coordSeeds]<-1:Ntrees
   
+  if(cantext=='on')
+  {
+    coordSeeds_len<-nrow(coordSeeds)
+    can_pix<-round(cansize/res(imagery)[1])
+    row_max<-dim(Gnew)[1]
+    col_max<-dim(Gnew)[2]
+    subcan_mean<-vector('numeric', length=coordSeeds_len)
+    subcan_cov<-vector('numeric', length=coordSeeds_len)
+    subcan_range<-vector('numeric', length=coordSeeds_len)
+    for(ind in 1:Ntrees)
+    {
+      prog.seq<-seq(0,1, by=0.1)
+      progress<-round(coordSeeds_len * prog.seq)  %in% ind
+      if(any(progress))
+        cat(paste((which(progress)-1)*10), '%   ', sep='')
+      
+      row_pix<-coordSeeds[ind,'row']+c(-can_pix, can_pix)
+      col_pix<-coordSeeds[ind,'col']+c(-can_pix, can_pix)
+      in_img_test<-!(any(row_pix<=0 | row_pix>=row_max) | any(col_pix<=0 | col_pix>=col_max))
+      if(in_img_test)
+      {
+        subcan<-Gnew[row_pix, col_pix]
+        subcan_mean[ind]<-mean(subcan)
+        subcan_sd<-sd(subcan)
+        subcan_cov[ind]<-subcan_sd/subcan_mean[ind]
+        subcan_range<-range(subcan)
+        subcan_range[ind]<-subcan_range[2]-subcan_range[1]
+      }
+      else
+      {
+        subcan_mean[ind]<-NA
+        subcan_cov[ind]<-NA
+        subcan_range[ind]<-NA
+      }  
+    }
+  }
+  
   # converts back to a spatial grid:
   Cb <- imagery
   Mb <- imagery
@@ -506,9 +533,13 @@ THRESHCrown, htod, specT, SOBELstr, lm.searchwin=NULL, blur=TRUE, gobble='off')
   m3.shp[treepos.ind, "crownbound"]<-boundcount[,3]
   m3.shp[treepos.ind, "allombound"]<-boundcount[,4]
   m3.shp[treepos.ind, "tallerbound"]<-boundcount[,5]
-  m3.shp[treepos.ind, "sobel"]<-sobel_mean
-  
-    HCbuf <- rgeos::gBuffer(m3.shp, width = -res(imagery)[1]/2, byid = T) 
+  if(cantext=='on'){
+    m3.shp[treepos.ind, "sobel"]<-sobel_mean
+    m3.shp[treepos.ind, "can_mean"]<-subcan_mean
+    m3.shp[treepos.ind, "can_cov"]<-subcan_cov
+    m3.shp[treepos.ind, "can_range"]<-subcan_range
+  }
+  HCbuf <- rgeos::gBuffer(m3.shp, width = -res(imagery)[1]/2, byid = T) 
   ITCcv <- rgeos::gConvexHull(HCbuf, byid = T)
   ITCcvSD <- sp::SpatialPolygonsDataFrame(ITCcv, data = HCbuf@data, match.ID = F)
   #ITCcvSD <- sp::SpatialPolygonsDataFrame(HCbuf, data = HCbuf@data, match.ID = F)

@@ -16,7 +16,7 @@ rq_lut<-function(x, y, log){
      x<-log(x); y<-log(y) 
     }
       
-    fit = rq(y ~ x, tau = tau )
+    fit = quantreg::rq(y ~ x, tau = tau )
     a <- coef(fit)[1]
     b <- coef(fit)[2]
   

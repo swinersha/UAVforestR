@@ -29,7 +29,7 @@ source('R/crown_overlap.R')
 source("R/rq_lut.R") # The function to run the quantile regression
 source("R/Image preprocessing tools.R") # The function to run the quantile regression
 
-LOGMODEL<-FALSE
+LOGMODEL<-TRUE
 
 # Load the UAV and LiDAR images ----
 uav_dsm<-raster("data/uav_dsm_matched_cropped.tif")
@@ -52,7 +52,7 @@ median(values(uav_dsm), na.rm=T)
 # DSMs. However by checking ground values in QGIS the difference is closer to 18 m. 
 
 
-# Aligning the UAV and LiDAR models ----
+# Align the UAV and LiDAR models ----
 
 # The thing to do is to see if you end up with negative or positive values on the roads etc once you subtract the 
 # LiDAR CHM from the UAV CHM.
@@ -71,7 +71,7 @@ uav_dtm[uav_dtm<0]<-NA
 # Calculates the canopy height models for the UAV
 uav_chm<-uav_dsm-uav_dtm # UAV DTM
 
-# Loads in the manual segmentation data ----
+# Load in the manual segmentation data ----
 
 # Reads in the manually segmented trees:
 man_uav<-readShapeSpatial("/Users/Tom/Documents/Work/R projects/UAVforestR/data/Manual trees UTM.shp")
@@ -106,7 +106,7 @@ grid.arrange(g1_uav + ggtitle('UAV'), g1_lid + ggtitle('LiDAR'), ncol=2)
 
 par(mfrow=c(2,1));hist(man_uav$R, xlim=c(0,12)); hist(man_lid$R, xlim=c(0,12))
 
-# Assessing the allometric relationship for the manually segmented trees ----
+# Assess the allometric relationship for the manually segmented trees ----
 
 # Calculate the 90th percentile of the manual crowns height predicted from radius:
 lut_lid<-rq_lut(x=man_lid$CH_max, y=man_lid$R, log=LOGMODEL)
@@ -178,7 +178,8 @@ hist(conf_match_uav$overlap_au, main='Proportion overlap', xlab=''); median(conf
 hist(conf_match_uav$size_ratio, breaks=10, main='Size ratio', xlab=''); median(conf_match_uav$size_ratio)
 
 par(mfrow=c(1,1))
-plot(x=conf_auto_uav$CR_m, conf_auto_uav$CH_max, pch=16, col=rgb(0.7,0,0.3,0.5))
+plot(x=conf_auto_uav$CR_m, conf_auto_uav$CH_max, pch=16, col=rgb(0.7,0,0.3,0.5), 
+     xlab='Radius', ylab='Height')
 points(x=man_uav$R, man_uav$CH_max, pch=16, col=rgb(0,0,0,0.7))
 points(x=man_lid$R, man_lid$CH_max, pch=16, col=rgb(0,0,1,0.7))
 points(x, y=allom_lookup(x, lut_rtoh_lid, tau=50, antilog=LOGMODEL), type='l', col=rgb(0,0,0,1), lwd=3, lty=3) # 50th %ile
@@ -206,10 +207,6 @@ ggplot(conf_match_uav@data, aes(x=CH_max, y=CR_m, size=size_ratio, color=shapebo
 # Convert the radius into height
 conf_auto_uav$CH50<-allom_lookup(conf_auto_uav$CR_m, lut_rtoh_lid, tau=50, antilog=LOGMODEL)
 
-# Currently this uses the 20th %ile... which doesn't seem right. It would be
-# better to use the 50%ile I would think. I chose the 20th because it gives a good match
-# to the LiDAR heights. 
-
 # Checks the distribution of the supposed autotrees:
 hist(conf_auto_uav$CR_m)
 # Most of the trees have a crown radius less than 2 m but the allometric relationship
@@ -220,25 +217,20 @@ hist(conf_auto_uav$CR_m)
 conf_auto_uav$lid_CH_max<-img_xy_extract(x=conf_auto_uav$maxx, y=conf_auto_uav$maxy, img=lid_chm)
 # !!!! THIS SEEMS WELL DODGY - YOU COULD PERHAPS USE MEAN RATHER THAN MATCH THE HEIGHTS
 
-par(mfrow=c(2,2), mar=c(4,4,2,2))
+par(mfrow=c(1,3), mar=c(4,4,2,2))
 # Plots the UAV height against the LiDAR values:
-plot(conf_auto_uav$CH_max~conf_auto_uav$lid_CH_max, pch=16, col=rgb(0,0,0,0.5), 
+plot(conf_auto_uav$CH_max~conf_auto_uav$lid_CH_max, pch=16, col=rgb(0,0,0,0.5), ylim=c(0,40), 
      xlab='LiDAR Height (m)', ylab='UAV Height (m)')
 abline(0,1, col='blue')
 # Plots the height estimates against the LiDAR values:
 plot(conf_auto_uav$CH50~conf_auto_uav$lid_CH_max, pch=16, col=rgb(0,0,0,0.5), 
-     xlab='LiDAR Height (m)', ylab='Height estimated from segmented crowns (m)', ylim=c(0,40))
+     xlab='LiDAR Height (m)', ylab='Estimated Height (m)', ylim=c(0,40))
 abline(0,1, col='blue')
 # Plots the height estimates again against the UAV heights:
 plot(conf_auto_uav$CH50~conf_auto_uav$CH_max, pch=16, col=rgb(0,0,0,0.5), 
-     xlab='UAV Height (m)', ylab='Height estimated from segmented crowns (m)')
+     xlab='UAV Height (m)', ylab='Height (m)', ylim=c(0,40))
 points(conf_auto_uav$lid_CH_max~conf_auto_uav$CH_max, pch=16, col=rgb(0.7,0,0.3,0.5))
 abline(0,1, col='blue')
-# Plots the UAV and estimated heights against the segmented crown radii:
-plot(conf_auto_uav$CH_max~conf_auto_uav$CR_m, pch=16, col=rgb(0,0,0,0.5), 
-     xlab='Crown radius (m)', ylab='UAV Height (m)')
-points(conf_auto_uav$CH50~conf_auto_uav$CR_m, pch=16, col=rgb(0.7,0,0.3,0.5))
-points(conf_match_uav$CH_max~conf_match_uav$CR_m, pch=16, col=rgb(0,0,1,0.7))
 
 
 # The median difference between the UAV heights and the 50%ile heights
@@ -259,62 +251,74 @@ writeSpatialShape(conf_auto_uav, "Data/ITC trees_params/Confident_seed_0.5_crown
 
 # Produce a set of points for the estimated DTM at the tree bases according to CH50
 # Estimate the new DTM surface
+
+k=1000 # A hack as the k object doesn't seem to be able to be read as a functional argument
 est_dtm<-dtm_predict(x=conf_auto_uav$maxx, y=conf_auto_uav$maxy, z=conf_auto_uav$CH50,
                   img=uav_dsm,
                   predict_grid_by=25,
-                  k=1000)
+                  k=k)
 
+# ALter the existing UAV DTM by changing values which are greater than the estimated DTM
+# To the estimates:
+low_uav_dtm<-uav_dtm
+low_uav_dtm[low_uav_dtm>est_dtm]<-est_dtm[low_uav_dtm>est_dtm]
+
+# Plot the DTMs
 col.pal<-colorRampPalette(c("white", "goldenrod1", "forestgreen", "limegreen"))( 10 )
 col.breaks<-seq(20, 60, length=length(col.pal)+1)
 
-par(mfrow=c(1,3))
+par(mfrow=c(1,4))
 plot(lid_dtm, col=col.pal, breaks=col.breaks, colNA='black', main='LiDAR')
 plot(uav_dtm, col=col.pal, breaks=col.breaks, colNA='black', main='SFM raw')
 plot(est_dtm, col=col.pal, breaks=col.breaks, colNA='black', main='SFM corrected')
+plot(low_uav_dtm, col=col.pal, breaks=col.breaks, colNA='black', main='SFM corrected')
 
 par(mfrow=c(1,1))
-plot(est_dtm, col=col.pal, breaks=col.breaks, colNA='black')
+plot(low_uav_dtm, col=col.pal, breaks=col.breaks, colNA='black')
 plot(conf_auto_uav, add=TRUE, border='red')
 
-# Estimate the new CHM surface by subtracting the estimated DTM from the DSM.
-
+# Calculate the new CHMs while preventing values less than 0:
 est_chm<-uav_dsm-est_dtm
 est_chm[est_chm<0]<-0
+low_uav_chm<-uav_dsm-low_uav_dtm
+est_chm[est_chm<0]<-0
 
+# Plot the CHMs
 col.pal<-colorRampPalette(c("white", "goldenrod1", "forestgreen", "limegreen"))( 10 )
 col.breaks<-seq(-1, 60, length=length(col.pal)+1)
 
-par(mfrow=c(1,3))
+par(mfrow=c(1,4))
 plot(lid_chm, col=col.pal, breaks=col.breaks, colNA='black')
 plot(uav_chm, col=col.pal, breaks=col.breaks, colNA='black')
 plot(est_chm, col=col.pal, breaks=col.breaks, colNA='black')
+plot(low_uav_chm, col=col.pal, breaks=col.breaks, colNA='black')
 
 # Compare the LiDAR and estimated models ----
 
 lid_chm_grid<-grid_fun(lid_chm, grid_by=50, fun=function(x) mean(x, na.rm=TRUE)) # for the LiDAR CHM
 uav_chm_grid<-grid_fun(uav_chm, grid_by=50, fun=function(x) mean(x, na.rm=TRUE)) # for the LiDAR CHM
 est_chm_grid<-grid_fun(est_chm, grid_by=50, fun=function(x) mean(x, na.rm=TRUE)) # for the LiDAR CHM
-
-est_diff<-est_chm_grid-uav_chm_grid
-hist(values(est_diff))
-
-est_diff[est_diff<0]<-0
-est_chm_grid2<-uav_chm_grid+est_diff
+low_uav_chm_grid<-grid_fun(low_uav_chm, grid_by=50, fun=function(x) mean(x, na.rm=TRUE)) # for the LiDAR CHM
 
 liduav_diff<-lid_chm_grid-uav_chm_grid
-lidest_diff<-lid_chm_grid-est_chm_grid2
+lidest_diff<-lid_chm_grid-est_chm_grid
+lidlowuav_diff<-lid_chm_grid-low_uav_chm_grid
 
 rmse<-function(x, y)  sqrt(mean((y-x)^2, na.rm=TRUE)) 
 
 rmse(values(lid_chm_grid), values(uav_chm_grid))
 rmse(values(lid_chm_grid), values(est_chm_grid))
+rmse(values(lid_chm_grid), values(low_uav_chm_grid))
 
 col.pal<-colorRampPalette(c('red', "white", 'blue'))( 7 )
 col.breaks<-seq(-14, 14, length=length(col.pal)+1)
 par(mfrow=c(1,3), mar=c(2,2,2,2))
 plot(liduav_diff, col=col.pal,  colNA="black", breaks=col.breaks, main="CHM difference")
-plot(est_diff, col=col.pal, colNA="black", breaks=col.breaks, main="Correction amount")
 plot(lidest_diff, col=col.pal, colNA="black", breaks=col.breaks, main="Corrected CHM difference")
-#plot(conf_auto_uav, add=TRUE, border='black')
+plot(lidlowuav_diff, col=col.pal, colNA="black", breaks=col.breaks, main="Low UAV CHM difference")
 
+par(mfrow=c(3,1))
+hist(values(liduav_diff), xlim=c(-7,15))
+hist(values(lidest_diff), xlim=c(-7,15))
+hist(values(lidlowuav_diff), xlim=c(-7,15))
 

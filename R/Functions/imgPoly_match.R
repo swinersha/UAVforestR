@@ -20,6 +20,26 @@ imgPoly_match<-function(img.path, poly)
   img.path[unlist(tile.test)]
 }
 
+extent2spdf<-function(img)
+{
+  img_crs<-crs(img)
+  poly<-as(extent(img), "SpatialPolygons")
+  poly<-SpatialPolygonsDataFrame(poly, data=data.frame(ID=1:length(poly)))
+  crs(poly)<-img_crs
+  return(poly)
+}
+
+P2a = Polygon(r2a)
+P2b = Polygon(r2b)
+Ps2 = Polygons(list(P2a, P2b), ID = "b")
+
+# Spatial Polygons Data Frame
+SPs = SpatialPolygons(list(Ps1, Ps2))
+
+SPDF = SpatialPolygonsDataFrame(SPs, data.frame(N = c("one", "two"), row.names = c("a", "b")))
+SPDF@data
+
+
 #--------------------------------------------------
 # 161102
 # This is an updated version that is more efficient and powerful in the way it can be specified
@@ -30,9 +50,9 @@ imgPoly_match<-function(img.path, poly)
 #dir<-chm.path; pattern=paste('Chunk', chunk, 'CHM', '.*.tif$')
 #dir<-om.path; pattern=paste('Chunk', chunk, 'OM', '.*.tif$')
 #list.files(dir)
+#dir='data/OM 4cm'; pattern=NULL; poly=uav_chm_e4
 
-
-imgPoly_match2<-function(dir, pattern=NULL, poly)
+imgPoly_match2<-function(dir, pattern=NULL, poly, type='contains')
 {
   
   if(is.null(pattern))
@@ -48,6 +68,8 @@ imgPoly_match2<-function(dir, pattern=NULL, poly)
      # Check that we are not dealing with multiple coordinate reference systems:
      if(length(u.crs)>1)
        stop("Error: multiple CRSs in use.")
+     if(class(poly)=='RasterLayer') # This might need debugging
+       poly<-extent2spdf(poly)
      poly<-sp::spTransform(poly, u.crs[[1]]) # Tranform the polygons to match the images
      
      # works through the file paths to iamges one by one to check for the best match:  
@@ -60,7 +82,10 @@ imgPoly_match2<-function(dir, pattern=NULL, poly)
        tile.test<-sapply(rasters_extent, function(y)
        {
          ei2 <- as(y, "SpatialPolygons") # the extent of the image
-         rgeos::gContainsProperly(ei2, ei1) # test whether the raster contains the polygon or not.
+         if(type=='contains')
+          rgeos::gContainsProperly(ei2, ei1) # test whether the raster contains the polygon or not.
+         if(type=='intersect')
+          rgeos::gIntersects(ei2, ei1) # test whether the raster contains the polygon or not.
        }
        )
        files[unlist(tile.test)] # index from the list of filepaths to the images
