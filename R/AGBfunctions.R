@@ -32,6 +32,12 @@ noncover_n<-function(x, h_thresh, na.rm){
   return(y)
 }
 
+cover_resid_calc<-function(cover, tch){
+  cover_resid<-cover - (1 + exp(12.431) * tch^-4.061)^-1
+  return(cover_resid)
+}
+
+
 #' Calculate basal area from top canopy height and the residual of the relationship
 #' between tch and canopy cover proportion
 #'
@@ -109,6 +115,60 @@ nearest_neg_round<-function(x)
   2*round((x+1)/2)-1
 
 
+#' Create a stack of tch and canopy cover:
+#'
+#' @description Create a stack of tch and canopy cover:
+#'
+#' @param chm A raster image of canopy height values
+#' @param cover_h_thresh A numeric value indicating the height at which canopy cover proportion
+#' should be calculated
+#' @param scale The scale over which agb should be calculated in meters
+#' @param verbose logical; indicates whether or not progress should be printed to the console
+#' @return A raster with pixel values denoting above ground biomass in tonnes per ha. Note
+#' that these values should not be added in aggregation but averaged instead.
+#' @export
+#' @author Tom Swinfield
+#' @details
+#'
+#' Created 18-03-27
+#'
+tch_stacker <- function(chm, cover_h_thresh, scale, verbose = TRUE) {
+
+  n_pix<-scale / res(chm)[1]
+  n_pix<-nearest_neg_round(n_pix)
+  w<-matrix(1, n_pix, n_pix)
+  progress<-""
+  if(verbose) progress<-"text"
+  #lid_cover<-focal(lid_chm, w = matrix(1, 301, 301), fun = function(x) cover(x, h_thresh = 20))
+  if(verbose) cat("Calculating cover: \n")
+  cover_n <-
+    aggregate(
+      chm,
+      fact = n_pix,
+      fun = function(x, na.rm)
+        cover_n(x, h_thresh = cover_h_thresh),
+      progress = progress
+    )
+  if(verbose) cat("\nCalculating openness: \n")
+  noncover_n <-
+    aggregate(
+      chm,
+      fact = n_pix,
+      fun = function(x, na.rm)
+        noncover_n(x, h_thresh = cover_h_thresh),
+      progress = progress
+    )
+  if(verbose) cat("\nCalculating top canopy height: \n")
+  tch <- aggregate(chm, fact = n_pix, fun = mean, progress = progress)
+
+  tch_stack<-stack(tch, cover_n, noncover_n)
+  names(tch_stack)<-c("tch", "cover", "gap")
+  return(tch_stack)
+}
+
+
+
+
 #' Calculate a raster of above ground biomass
 #'
 #' @description Functions for calculating AGB taken from Jucker et al., 2017
@@ -127,9 +187,9 @@ nearest_neg_round<-function(x)
 #' @details
 #'
 #' Created 17-09-13
-raster_agb <- function(chm, cover_h_thresh, scale, verbose = TRUE) {
+raster_agb <- function(chm, cover_h_thresh, scale, est_tch_gf = FALSE, verbose = TRUE) {
 
-  n_pix<-scale / res(lid_chm)[1]
+  n_pix<-scale / res(chm)[1]
   n_pix<-nearest_neg_round(n_pix)
   w<-matrix(1, n_pix, n_pix)
   progress<-""
@@ -168,16 +228,21 @@ raster_agb <- function(chm, cover_h_thresh, scale, verbose = TRUE) {
     ) %>%
     mutate(cover = n / (n + notn))
 
-  ggplot(biomass_df, aes(x = tch, y = cover)) +
-    geom_point() +
-    geom_smooth(method = "glm",
-                method.args = list(family = "binomial"))
+  if(est_tch_gf){
+    ggplot(biomass_df, aes(x = tch, y = cover)) +
+      geom_point() +
+      geom_smooth(method = "glm",
+                  method.args = list(family = "binomial"))
 
-  fm.cover1 <- glm(tf ~ tch, data = biomass_df, family = binomial)
-  #summary(fm.cover1)
-  biomass_df$cover_resid <- NA
-  biomass_df$cover_resid[!is.na(biomass_df$n)] <-
-    residuals(fm.cover1, type = "response")
+    fm.cover1 <<- glm(tf ~ tch, data = biomass_df, family = binomial)
+    #summary(fm.cover1)
+    biomass_df$cover_resid <- NA
+    biomass_df$cover_resid[!is.na(biomass_df$n)] <-
+      residuals(fm.cover1, type = "response")
+  }
+  else{
+    biomass_df$cover_resid <-cover_resid_calc(biomass_df$cover, biomass$tch)
+  }
 
   agb <- cover_n
   agb[] <- est_AGB(biomass_df$tch, biomass_df$cover_resid)
