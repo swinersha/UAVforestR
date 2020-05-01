@@ -26,7 +26,7 @@
 #' @author Tom Swinfield
 #' @details Created 17-08-17
 
-segment.crowns <- function(x, x.Sobel, coordSeeds, THRESHSeed, THRESHCrown, SOBELstr, scale, tau) {
+segment.crowns <- function(x, x.Sobel, coordSeeds, THRESHSeed, THRESHCrown, SOBELstr, scale, lut, tau) {
 
   Check <- x #
   Check[, ] <- 0 # Sets check to 0.
@@ -58,21 +58,28 @@ segment.crowns <- function(x, x.Sobel, coordSeeds, THRESHSeed, THRESHCrown, SOBE
              ncol = 2,
              dimnames = list(NULL, c('row', 'col'))) # The pixel for the new crown seed is marked as newCrown, to initiate the next iteration.
 
-    coordCrown[crown.ind, ] <- newCrown
+    if(!Check[newCrown]){
+      coordCrown[crown.ind, ] <- newCrown
+
+    # Check[r, k + 1]
+
     crown.indSeed <-
       crown.ind # The index of the first pixel of the crown.
     coordSeed <- newCrown # The treeseed for the current crown.
+
     rvSeed <- x[coordSeed] # Extracts the tree height.
     rvSobel <-
-      rvSeed * (1 - THRESHSeed) * SOBELstr # This multiplier changes the sensitivity of the sobel segment;
+      # rvSeed * (1 - THRESHCrown) * SOBELstr # This multiplier changes the sensitivity of the sobel segment;
+      SOBELstr # This multiplier changes the sensitivity of the sobel segment;
     # it might be better if this is set to THRESHCrown
+
     Check[newCrown] <- i # and is checked off.
     rvCrown <-
       mean(x[newCrown], na.rm = T) # Extracts the mean tree height.
     #crownrad.THRESH<-(htod(rvCrown, lut, tau=90)/2)/res(imagery)[1] # The crown radius in pixels
     crownrad.THRESH <-
-      (htod(x = rvCrown, tau = 90) / 2) / scale # The crown radius in pixels
-    boundMat <- boundMat_set(coordSeed[1], coordSeed[2], rvCrown, scale = scale, tau = tau)
+      (htod(x = rvCrown, lut = lut, tau = tau) / 2) / scale # The crown radius in pixels
+    boundMat <- boundMat_set(coordSeed[1], coordSeed[2], rvCrown, scale = scale, lut = lut, tau = tau)
 
     crown.total <-
       crown.ind  # A marker to keep track of the number of pixels still left to work on.
@@ -118,9 +125,11 @@ segment.crowns <- function(x, x.Sobel, coordSeeds, THRESHSeed, THRESHCrown, SOBE
       filData[4, 4] <- Check[r + 1, k]
       filData[4, 5] <- x.Sobel[r + 1, k]
 
+
       # Calculates distance of pixels from the focal pixel
       fil.dists <-
         as.matrix(dist(rbind(coordSeed, filData[, 1:2])))[1, -1]
+
       # Edits the boundary conditions matrix
       boundMat <-
         boundMat_edit(
@@ -167,6 +176,7 @@ segment.crowns <- function(x, x.Sobel, coordSeeds, THRESHSeed, THRESHCrown, SOBE
           crown.total + nNew # The total size of the crown data we're working on.
       }
       crown.ind <- crown.ind + 1 # increment focal pixel
+    }
     } # End of crown while loop.
     tree.ind[crown.indSeed:(crown.ind - 1)] <- i
     #treeHeights[ind] <- max(crownHeights) # Extracts the max tree height.

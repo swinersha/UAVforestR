@@ -1,0 +1,151 @@
+---
+title: "Segmentation example for Danum Valley"
+output: html_notebook
+---
+
+
+```{r}
+rm(list=ls())
+
+library(tidyverse)
+library(magrittr)
+library(readxl)
+library(raster)
+library(maptools)
+library(rgdal)
+library(ggplot2)
+library(rgeos)
+library(foreach)
+library(doParallel)
+library(sf)
+#library(gridExtra)
+#library(splancs)
+#library(RColorBrewer)
+#library(tidyverse)
+#library(UAVforestR)
+#library(lmtest)
+#library(car)
+
+# Load R source files
+R_source_files<-list.files(
+  path = "R",
+  pattern = "*.R$",
+  full.names = TRUE
+)
+sapply(R_source_files, function(x) source(x, local = FALSE,  echo = FALSE))
+
+```
+# Setup allometry lookup table
+
+For now we use the Global allometries database subset to Tropical forests in Indo-Malaya. 
+
+```{r}
+alm<-read_xlsx("../../data/trees/GlobalAllometricDatabase.xlsx", sheet ="Data")
+
+alm %<>%
+  filter(Biogeographic_zone == "Indo-Malaya",
+         Biome == "Tropical forests")
+
+lut<-rq_lut(x=alm$H, y=alm$CD/2, log=TRUE)
+
+lut[50,]
+
+data.frame(H = alm$H, R = alm$CD/2) %>%
+  ggplot(aes(x = H, y = R)) + 
+  geom_point(alpha = 0.3) + 
+  geom_line(data = data.frame(H = 1:80, R = htod_lookup(1:80, lut, 99)/2))+
+  geom_line(data = data.frame(H = 1:80, R = htod_lookup(1:80, lut, 90)/2))+
+  geom_line(data = data.frame(H = 1:80, R = htod_lookup(1:80, lut, 50)/2))+
+  geom_line(data = data.frame(H = 1:80, R = htod_lookup(1:80, lut, 10)/2), color = 'red')
+
+
+
+# htod<-function(x, tau) htod_lookup(x, lut=lut, tau = 0.9)
+
+```
+# Load CHM
+
+The canopy height model (CHM) is loaded and pre-processed by blurring and running the sobel edge detector. 
+
+```{r}
+chm<-raster("../../data/raster/Danum_DSM_587000_547000_CHM_r.tif")
+
+plot(chm)
+
+chm<-select(chm)
+
+chm_blur<-blur(chm)
+chm_sobel<-sobel_edge(chm)
+# writeRaster(chm_blur, "../../data/raster/chm_blur.tif")
+# writeRaster(chm_sobel, "../../data/raster/chm_sobel.tif")
+# lid_chm_blur<-raster("../../data/raster/chm_blur.tif")
+# lid_chm_sobel<-raster("../../data/raster/chm_sobel.tif")
+
+plot(chm_sobel)
+
+```
+
+
+```{r}
+
+itc<-itcIMG_fast(chm_blur,
+                 chm_sobel,
+                 THRESHSeed=0.6,
+                 THRESHCrown=0.8,
+                 lut = lut,
+                 tau = 99,
+                 specT=3,
+                 SOBELstr=30,
+                 lm.searchwin = 3,
+                 pypath = "/Library/Frameworks/GDAL.framework/Versions/1.11/Programs/gdal_polygonize.py"
+          )
+          
+file_name<-paste('data/shape/ITC_trees_params_cost_uav/seed_', params[i,1],
+                           '_crown_', params[i,2],
+                           '_sobel_', params[i,3],
+                           '_specT_0', sep='')
+writeOGR(itc,
+                   dsn = paste(file_name, '.shp', sep=''),
+                   layer = basename(file_name),
+                   drive = 'ESRI Shapefile')
+```
+
+
+
+```{r}
+plot(chm_blur)
+plot(chm_sobel)
+
+plot(chm_blur)
+plot(itc, add = TRUE)
+
+plot(chm_blur)
+plot(maxima_sp, add = TRUE)
+
+```
+
+
+
+```{r}
+chm_sp <- as(chm, "SpatialPixelsDataFrame") %>% st_as_sf()
+
+```
+
+```{r}
+itc_sf<-st_as_sf(itc) %>%
+  st_buffer(dist = 0) %>%
+  st_convex_hull()
+
+
+ggplot() +
+  geom_sf(data = chm_sp, aes(color = Danum_DSM_587000_547000_CHM_r)) +
+  geom_sf(data = itc_sf, alpha = 0.5)
+
+```
+
+
+```{r}
+ggplot(itc_sf, aes(x = treeHeights_mean, y = sobel_mean)) +
+  geom_point()
+```
+

@@ -1,0 +1,1157 @@
+---
+title: "Area based correction of UAV data"
+output: html_notebook
+---
+
+Load all the necessary packages and functions. 
+
+```{r header, results = "hide" }
+rm(list = ls())
+library(mgcv)
+library(UAVforestR)
+library(gridExtra)
+library(sp)
+library(rgeos)
+library(rgdal)
+library(RColorBrewer)
+library(spatialEco)
+library(caret)
+library(cowplot)
+library(magrittr)
+
+source("../../R/AGBfunctions.R")
+source("../../R/min_extent.R")
+
+htod<-function(x, tau) htod_lookup(x, lut=lut_uav, tau)
+
+rmse<-function(x, y)  sqrt(mean((y-x)^2, na.rm=TRUE))
+
+bias<-function(x, y)  mean(y-x, na.rm=TRUE)
+
+# Calculates the mean while applying a coverage threshold:
+mean_cover<-function(x, cover = 0.75, ...){
+  cover_prop<-sum(!is.na(x))/length(x)
+  if(cover_prop > cover)
+    mean(x, na.rm = TRUE)
+  else
+    return(NA)
+}
+
+# Calcuates topographic position index:
+tpiw <- function(x, w, coverage) {
+  m <- matrix(1, nc=w, nr=w)
+  centre_pos<-ceiling(0.5 * length(m))
+  acceptable_coverage<-(w^2)*(1-coverage)
+  f <- focal(x, m,  fun = function(x, na.rm){
+    if(sum(is.na(x)<acceptable_coverage)){
+      X<-x[centre_pos]
+      x[centre_pos]<-NA
+      return(X-mean(x, na.rm = TRUE))
+    }
+    else
+      return(NA)
+  },
+  na.rm = TRUE,
+  pad=TRUE, 
+  padValue=NA)
+}
+```
+
+Load the UAV and LiDAR image and ensure the UAV and LiDAR DEMs are vertically aligned (numbers from manual alignment). Any very low values in the UAV DSM are removed. Then calculate the canopy height model for the UAV
+
+
+```{r load rasters and align}
+uav_dsm<-raster("../../data/raster/uav_dsm_matched_cropped.tif")
+uav_dtm<-raster("../../data/raster/uav_dtm_matched_cropped.tif")
+lid_dsm<-raster("../../data/raster/lid_dsm_matched_cropped.tif")
+lid_dtm<-raster("../../data/raster/lid_dtm_matched_cropped.tif")
+lid_chm<-raster("../../data/raster/lid_chm_matched_cropped.tif")
+
+lid_chm<-readAll(lid_chm)
+lid_dtm<-readAll(lid_dtm)
+
+# Align vertically with LiDAR:
+uav_dsm<-uav_dsm-17.6
+uav_dtm<-uav_dtm-17.6
+# remove very low values from UAV DSM
+uav_dsm[uav_dsm<0]<-NA
+uav_dtm[uav_dtm<0]<-NA
+# Calculates the canopy height models for the UAV
+uav_chm<-uav_dsm-uav_dtm # UAV DTM
+
+writeRaster(uav_chm, "../../data/raster/uav_chm_matched_cropped.tif", overwrite = TRUE)
+
+# The area of the kapas tenggah survey in ha:
+(sum(is.na(values(uav_chm))) * res(uav_chm)[1] * res(uav_chm)[2]) / 10000
+
+```
+
+
+```{r}
+# You need to run this in the console:
+plot(lid_chm)
+# aoi<-drawPoly(sp=TRUE, col='red', lwd=2) # !!! You have to do this by hand on the plotted image
+# proj4string(aoi)<-crs(lid_chm)
+# lid_chm_croppedarea<-raster::extract(lid_chm, aoi)
+# lid_chm_croppedarea<-raster::select(lid_chm)
+# mean(values(lid_chm_croppedarea), na.rm = TRUE)
+# sd(values(lid_chm_croppedarea), na.rm = TRUE)
+```
+
+
+```{r}
+par(mfrow=c(1,1), mar = c(0.5,0.5,1,1))
+col.pal<-list(color = colorRampPalette(brewer.pal(9,"GnBu"))(10))$color
+col.breaks<-seq(-5, 50, length=length(col.pal)+1)
+
+hist(values(lid_chm))
+
+pdf("../../Figures/PeerJ/KT_LiDAR.pdf", width = 5, height = 5)
+plot(lid_chm, col=col.pal, breaks=col.breaks, colNA='black', axes=FALSE, legend=TRUE, box=FALSE)
+dev.off()
+
+pdf("../../Figures/PeerJ/KT_SFM.pdf", width = 5, height = 5)
+plot(uav_chm, col=col.pal, breaks=col.breaks, colNA='black', axes=FALSE, legend=TRUE, box=FALSE)
+dev.off()
+
+
+plot(lid_dtm - uav_dtm)
+
+```
+
+
+```{r}
+
+scale <-50 
+n_pix<-as.integer(scale / res(lid_chm)[1])
+w<-matrix(1, n_pix, n_pix)
+
+uav_dsm_1ha<- aggregate(uav_dsm, fact = n_pix, fun = mean_cover)
+uav_dtm_1ha<- aggregate(uav_dtm, fact = n_pix, fun = mean_cover)
+lid_dtm_1ha<- aggregate(lid_dtm, fact = n_pix, fun = mean_cover)
+uav_tpi_9ha<-tpiw(uav_dsm_1ha, w = 5, coverage = 0.75)
+
+lid_dtmtpi_2.25ha<- tpiw(lid_dtm_1ha, w = 3, coverage = 0.75)
+
+uav_dtmtpi_2.25ha<- tpiw(uav_dtm_1ha, w = 3, coverage = 0.75)
+uav_dsmtpi_2.25ha<- tpiw(uav_dsm_1ha, w = 3, coverage = 0.75)
+uav_dtmtpi_6.25ha<- tpiw(uav_dtm_1ha, w = 5, coverage = 0.75)
+uav_dsmtpi_6.25ha<- tpiw(uav_dsm_1ha, w = 5, coverage = 0.75)
+
+uav_tpi_25ha<-tpiw(uav_dsm_1ha, w = 5, coverage = 0.75)
+
+par(mfrow=c(1,2))
+#plot(uav_dsm_1ha)
+plot(uav_tpi_9ha)
+plot(uav_dtmtpi_6.25ha)
+#plot(uav_tpi_25ha)
+
+```
+
+
+
+Extract top canopy for the LiDAR and UAV and then fit a polynomial to this. 
+
+```{r}
+lid_tch <- aggregate(lid_chm, fact = n_pix, fun = mean_cover)
+uav_tch <- aggregate(uav_chm, fact = n_pix, fun = mean_cover)
+uav_tch_sd <- aggregate(uav_chm, fact = n_pix, fun = sd)
+
+```
+
+```{r}
+
+tch<-data.frame(lid = values(lid_tch),
+                uav = values(uav_tch),
+                tpi_lid_dtm_2.25ha = values(lid_dtmtpi_2.25ha),
+                tpi_dtm_2.25ha = values(uav_dtmtpi_2.25ha),
+                tpi_dsm_2.25ha = values(uav_dsmtpi_6.25ha),
+                tpi_dtm_6.25ha = values(uav_dtmtpi_6.25ha),
+                tpi_dsm_6.25ha = values(uav_dsmtpi_6.25ha),
+                tch_sd = values(uav_tch_sd),
+                tch_cov = values(uav_tch_sd/uav_tch)
+                ) %>%
+  mutate(tpi = tpi_dsm_2.25ha) %>%
+  mutate(lid2 = lid^2) %>%
+  mutate(uav2 = uav^2) %>%
+  na.omit
+
+cor(tch$lid,tch$uav)
+bias(tch$lid,tch$uav)
+rmse(tch$lid,tch$uav); rmse(tch$lid,tch$uav)/ mean (tch$lid)
+
+# Trying to fit different functions to the untransformed LiDAR data 
+pdf("../../Figures/PeerJ/correction_linear2.pdf", height = 3.5, width = 3.5)
+tch %>% 
+  mutate(myweights = abs(uav)/sum(uav)) %>%
+  ggplot(aes(x = uav, y = lid)) +
+  geom_point(alpha = 0.4) +
+#  geom_smooth(method = "lm", formula = y~x-1) + 
+  geom_smooth(method = "lm", formula = y~x) + 
+  # geom_smooth(method = "lm", formula = y~poly(x, 2, raw = TRUE)-1, col = "red") + 
+  # geom_smooth(method = "nls", formula = y~(a * x) / (b + x), 
+              # method.args = list(start=c(a=80,b=80)),
+              # se = FALSE) + 
+  geom_abline(intercept = 0,slope = 1) +
+  ylab("LiDAR (m)") +
+  xlab("SFM (m)") +
+  ylim(0, 25) +
+  theme_cowplot()
+dev.off()
+
+# After squaring the LiDAR data we can fit linear functions:
+# Trying to fit different functions to the untransformed LiDAR data 
+pdf("../../Figures/PeerJ/correction_quadratic.pdf", height = 3.5, width = 3.5)
+tch %>% 
+  mutate(myweights = (uav^2)/sum(uav^2)) %>%
+  # ggplot(aes(x = uav, y = lid2, size = tpi, weight = myweights)) +
+  ggplot(aes(x = uav, y = lid2)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "lm", formula = y~x) + 
+  # geom_smooth(method = "lm", formula = y~poly(x, 2, raw = TRUE)) + 
+  # geom_smooth(method = "nls", formula = y~(a * x) / (b + x), 
+  #             method.args = list(start=c(a=80,b=80)),
+  #             se = FALSE) + 
+  geom_line(data = data.frame(uav = 0:25, lid2 = (0:25)^2)) +
+  ylab(expression(paste("LiDAR (", m^2, ")"))) +
+  xlab("SFM (m)") +
+  xlim(0, 20) +
+  # ylim(0, 25) +
+  theme_cowplot()
+dev.off()
+
+tch %>% 
+  mutate(myweights = abs(uav)/sum(uav),
+         uav_sqrt = sqrt(uav)) %>%
+  ggplot(aes(x = uav_sqrt, y = lid)) +
+  geom_point(alpha = 0.4) +
+#  geom_smooth(method = "lm", formula = y~x-1) + 
+  geom_smooth(method = "lm", formula = y~x) + 
+  # geom_smooth(method = "lm", formula = y~poly(x, 2, raw = TRUE)-1, col = "red") + 
+  # geom_smooth(method = "nls", formula = y~(a * x) / (b + x), 
+              # method.args = list(start=c(a=80,b=80)),
+              # se = FALSE) + 
+  geom_line(data = data.frame(uav_sqrt = sqrt(seq(0, 25, by = 0.1)), lid = seq(0, 25, by = 0.1))) +
+  ylab("LiDAR (m)") +
+  xlab("SFM (m)") +
+  ylim(0, 25) +
+  theme_cowplot()
+
+
+# Plot the difference between the LiDAR and the UAV TCH measurements against 
+# the LiDAR measured TPI:
+tch %>%
+  mutate(error = uav - lid) %>%
+  ggplot(aes(x = tpi_lid_dtm_2.25ha, y = error)) +
+  geom_point(alpha = 0.4) +
+#  geom_smooth(method = "lm", formula = y~x-1) + 
+  geom_smooth(method = "lm", formula = y~x) +
+  ylab("TCH Error (m)") +
+  xlab("Lidar TPI") +
+  theme_cowplot()
+
+
+# Fit the polynomial linear model with cross-validation:
+tch_intrain<-createDataPartition(y = tch$uav, times = 1, p = 1, list = FALSE)
+tch_training<-tch[tch_intrain[,1],]
+tch_testing<-tch[-tch_intrain[,1],]
+
+nrow(tch_training)
+nrow(tch_testing)
+
+
+# The basic linear model
+tch_fm1_cv<- train(
+  lid ~ uav, tch_training,
+  method = "lm",
+  # weights = abs(tch_training$uav)/sum(tch_training$uav),
+  trControl = trainControl(
+    method = "cv", number = 5,
+    verboseIter = TRUE)
+)
+tch_fm1<- lm(lid ~ uav, tch_training)
+
+
+# The basic linear model to LiDAR squared
+tch_fm2_cv<- train(
+  lid2 ~ uav, tch_training,
+  method = "lm",
+  trControl = trainControl(
+    method = "cv", number = 5,
+    verboseIter = TRUE)
+)
+tch_fm2<- lm(lid2 ~ uav, tch_training)
+
+# The basic quadratic model:
+# tch_fm3_cv<- train(
+#   lid ~ poly(uav, 2, raw = TRUE), tch_training,
+#   method = "lm",
+#   # weights = (tch_training$uav^2)/sum(tch_training$uav^2),
+#   trControl = trainControl(
+#     method = "cv", number = 5,
+#     verboseIter = TRUE)
+# )
+# tch_fm3 <-
+#   lm(
+#   lid ~ poly(uav, 2, raw = TRUE),
+#   # weights = (tch_training$uav ^ 2) / sum(tch_training$uav ^ 2),
+#   tch_training
+#   )
+
+# The basic quadratic model to lidar squared:
+# tch_fm4_cv<- train(
+#   lid2 ~ poly(uav, 2, raw = TRUE)-1, tch_training,
+#   method = "lm",
+#   # weights = (tch_training$uav^2)/sum(tch_training$uav^2),
+#   trControl = trainControl(
+#     method = "cv", number = 5,
+#     verboseIter = TRUE)
+# )
+# tch_fm4 <-
+#   lm(
+#   lid ~ poly(uav, 2, raw = TRUE)-1,
+#   # weights = (tch_training$uav ^ 2) / sum(tch_training$uav ^ 2),
+#   tch_training
+#   )
+
+# A more complex model including tpi
+tch_fm5_cv <- train(
+  lid ~ uav * tpi, tch_training,
+  method = "lm",
+  # weights = abs(tch_training$uav^2)/sum(tch_training$uav^2),
+  trControl = trainControl(
+    method = "cv", number = 5,
+    verboseIter = TRUE)
+)
+tch_fm5 <-
+  lm(
+  lid ~ uav*tpi,
+  tch_training
+  )
+
+tch_fm5a_cv <- train(
+  lid ~ uav + tpi, tch_training,
+  method = "lm",
+  # weights = abs(tch_training$uav^2)/sum(tch_training$uav^2),
+  trControl = trainControl(
+    method = "cv", number = 5,
+    verboseIter = TRUE)
+)
+
+tch_fm5a <-
+  lm(
+  lid ~ uav+tpi,
+  tch_training
+  )
+
+tch_fm5b_cv <- train(
+  lid ~ uav * tpi_dtm_2.25ha, tch_training,
+  method = "lm",
+  # weights = abs(tch_training$uav^2)/sum(tch_training$uav^2),
+  trControl = trainControl(
+    method = "cv", number = 5,
+    verboseIter = TRUE)
+)
+
+
+tch_fm6_cv <- train(
+  lid ~ uav * tch_sd, tch_training,
+  method = "lm",
+  # weights = abs(tch_training$uav^2)/sum(tch_training$uav^2),
+  trControl = trainControl(
+    method = "cv", number = 5,
+    verboseIter = TRUE)
+)
+
+
+tch_fm6 <-
+  lm(
+  lid ~ uav *tch_sd,
+  tch_training
+  )
+
+# A more complex model including tpi
+tch_fm7_cv <- train(
+  lid2 ~ uav * tpi, tch_training,
+  method = "lm",
+  # weights = abs(tch_training$uav^2)/sum(tch_training$uav^2),
+  trControl = trainControl(
+    method = "cv", number = 5,
+    verboseIter = TRUE)
+)
+tch_fm7 <-
+  lm(
+  lid2 ~ uav*tpi,
+  tch_training
+  )
+
+tch_fm8_cv <- train(
+  lid2 ~ uav * tch_sd, tch_training,
+  method = "lm",
+  # weights = abs(tch_training$uav^2)/sum(tch_training$uav^2),
+  trControl = trainControl(
+    method = "cv", number = 5,
+    verboseIter = TRUE)
+)
+tch_fm8 <-
+  lm(
+  lid2 ~ uav *tch_sd,
+  tch_training
+  )
+
+# tch_fm9_cv <- train(
+#   lid ~ poly(uav, 2, raw = TRUE) * tpi + poly(uav, 2, raw = TRUE) * tch_sd, tch_training,
+#   method = "lm",
+#   # weights = abs(tch_training$uav^2)/sum(tch_training$uav^2),
+#   trControl = trainControl(
+#     method = "cv", number = 5,
+#     verboseIter = TRUE)
+# )
+
+# Check the cross-validated model performance:
+tch_fm1_cv
+tch_fm2_cv
+# tch_fm3_cv # 3 is better than 1... applying a polynomial is better without transformation
+# tch_fm4_cv # 2 is better than 4... no need to apply a polynomial after transformation
+
+tch_fm5_cv
+tch_fm6_cv
+tch_fm7_cv
+tch_fm8_cv
+
+summary(tch_fm1)
+summary(tch_fm2)
+# summary(tch_fm3)
+# summary(tch_fm4)
+summary(tch_fm5)
+summary(tch_fm5a)
+
+summary(tch_fm6)
+summary(tch_fm7)
+summary(tch_fm8)
+
+AIC(tch_fm1, tch_fm2, tch_fm5, tch_fm6, tch_fm7, tch_fm8)
+
+```
+
+```{r}
+summary(lm(I(lid-uav)~tpi_lid_dtm_2.25ha, data = tch))
+
+```
+
+
+```{r}
+# Plot model 1 error with LiDAR measured canopy height
+tch_fm1_nd<-data.frame(uav = seq(0, 60, by = 0.1))
+tch_fm1_nd$lid<-predict(tch_fm1, newdata = tch_fm1_nd)
+tch_fm1_nd %<>% mutate(error = lid - uav)
+tch_fm1_nd %>% ggplot(aes(x = lid, y = error)) +
+  geom_point() +
+  geom_hline(yintercept = 0)
+
+
+# Plot model 2 error with LiDAR measured canopy height
+tch_fm2_nd<-data.frame(uav = seq(0, 140, by = 0.1))
+tch_fm2_nd$lid<-sqrt(predict(tch_fm2, newdata = tch_fm2_nd))
+tch_fm2_nd %<>% mutate(error = lid - uav)
+tch_fm2_nd %>% ggplot(aes(x = lid, y = error)) +
+  geom_point() +
+  geom_hline(yintercept = 0)
+
+tch_fm2_nd[tch_fm2_nd$error == max(tch_fm2_nd$error),]
+
+```
+
+
+```{r}
+
+# Convert any values <0 to 0
+uav_tch_nozero<-uav_tch
+uav_tch_nozero[uav_tch_nozero<0]<-0
+
+uav_newdata<-stack(uav_tch_nozero, uav_dsmtpi_2.25ha, uav_tch_sd)
+names(uav_newdata)<-c("uav", "tpi", "tch_sd")
+
+# Create a raster of the predicted TCH values from model 0:
+
+uav_tch_cor1 <- raster::predict(uav_newdata, tch_fm1)
+uav_tch_cor2 <- sqrt(raster::predict(uav_newdata, tch_fm2))
+# uav_tch_cor3 <- raster::predict(uav_newdata, tch_fm3)
+# uav_tch_cor4 <- sqrt(raster::predict(uav_newdata, tch_fm4))
+uav_tch_cor5 <- raster::predict(uav_newdata, tch_fm5)
+uav_tch_cor6 <- raster::predict(uav_newdata, tch_fm6)
+uav_tch_cor7 <- sqrt(raster::predict(uav_newdata, tch_fm7))
+uav_tch_cor8 <- sqrt(raster::predict(uav_newdata, tch_fm8))
+
+# Add these to the TCH dataframe
+tch$uav_cor1<- values(uav_tch_cor1) %>% na.omit
+tch$uav_cor2<- values(uav_tch_cor2) %>% na.omit
+# tch$uav_cor3<- values(uav_tch_cor3) %>% na.omit
+# tch$uav_cor4<- values(uav_tch_cor4) %>% na.omit
+tch$uav_cor5<- values(uav_tch_cor5) %>% na.omit
+# tch$uav_cor6<- values(uav_tch_cor6) %>% na.omit
+tch$uav_cor7<- values(uav_tch_cor7) %>% na.omit
+# tch$uav_cor8<- values(uav_tch_cor8) %>% na.omit
+
+tch$training<-0
+tch$training[tch_intrain]<-1
+
+tch %>% 
+  tidyr::gather(key = "correction", value = "uav_tch", uav, matches("uav_cor")) %>%
+  # Plot the correction against the LiDAR
+  ggplot(aes(uav_tch, lid))+
+  geom_point(alpha = 0.8, size = 0.5) +
+  #geom_point(aes(uav_cor2, lid)) +
+  geom_abline(intercept = 0,slope = 1) +
+  xlim(-1, 30) +
+  ylim(-1, 30) +
+  facet_wrap(~correction, ncol = 3) +
+  theme_minimal()
+
+tch %>% 
+  # Plot the correction against the LiDAR
+  ggplot(aes(uav_cor2, lid, color = as.factor(training)))+
+  geom_point(alpha = 0.8) +
+  #geom_point(aes(uav_cor2, lid)) +
+  geom_abline(intercept = 0,slope = 1) +
+  xlim(-1, 30) +
+  ylim(-1, 30) 
+
+
+```
+
+
+
+
+
+
+
+Calculate biomass
+```{r biomass, results = "hide"}
+lid_agb<-raster_agb2(lid_tch)
+uav_agb<-raster_agb2(uav_tch)
+uav_cor1_agb<-raster_agb2(uav_tch_cor1)
+uav_cor2_agb<-raster_agb2(uav_tch_cor2)
+# uav_cor3_agb<-raster_agb2(uav_tch_cor3)
+# uav_cor4_agb<-raster_agb2(uav_tch_cor4)
+uav_cor5_agb<-raster_agb2(uav_tch_cor5)
+uav_cor6_agb<-raster_agb2(uav_tch_cor6)
+uav_cor7_agb<-raster_agb2(uav_tch_cor7)
+uav_cor8_agb<-raster_agb2(uav_tch_cor8)
+
+```
+
+
+The biomass as calculated by the LiDAR and the corrected UAV CHM, shown alongside the 
+absolute and relative error, plotted spatially.
+
+
+```{r plot error against agb}
+agb<-data.frame(lid = values(lid_agb), 
+           uav = values(uav_agb), 
+           uav_cor0 = values(uav_cor1_agb),
+           uav_cor1 = values(uav_cor2_agb),
+           # uav_cor2 = values(uav_cor3_agb),
+           # uav_cor3 = values(uav_cor4_agb),
+           uav_cor5 = values(uav_cor5_agb),
+           uav_cor6 = values(uav_cor6_agb),
+           uav_cor7 = values(uav_cor7_agb),
+           uav_cor8 = values(uav_cor8_agb)
+) %>%
+  na.omit
+
+# Show the overall relationship for the ABG
+agb %>% 
+  tidyr::gather(key = "uav_chm", value = "uav_agb", uav, matches("uav_cor")) %>%
+ggplot(aes(lid, uav_agb)) +
+  geom_point(alpha = 0.8, size = 0.5) +
+  geom_abline(intercept =0, slope = 1) +
+  geom_smooth(method= "lm", formula = y~poly(x, 2)) +
+  facet_wrap(~uav_chm)
+
+```
+
+```{r}
+# Load in the out of set chm from Bato
+
+lid_bato_chm<-raster("../../data/raster/lid_chm_bato_cropped.tif")
+lid_bato_dtm<-raster("../../data/raster/lid_dtm_bato_cropped.tif")
+uav_bato_chm<-raster("../../data/raster/uav_chm_bato_georef_cropped.tif")
+uav_bato_dsm<-raster("../../data/raster/uav_dsm_bato_georef_cropped.tif")
+uav_bato_orig_chm<-raster("../../data/raster/uav_chm_bato_cropped.tif")
+uav_bato_orig_dsm<-raster("../../data/raster/uav_dsm_bato_cropped.tif")
+
+
+
+# Check the models against each other:
+col.pal<-list(color = colorRampPalette(brewer.pal(9,"GnBu"))(10))$color
+col.breaks<-seq(0, 50, length=length(col.pal)+1)
+par(mfrow=c(1,2))
+plot(uav_bato_orig_chm, col=col.pal, breaks=col.breaks, colNA='black', axes=FALSE, legend=TRUE, box=FALSE)
+plot(uav_bato_chm, col=col.pal, breaks=col.breaks, colNA='black', axes=FALSE, legend=TRUE, box=FALSE)
+
+
+plot(uav_bato_chm - lid_bato_chm)
+
+# The area of the bato survey in hectares:
+(sum(is.na(values(lid_bato_chm))) * res(lid_bato_chm)[1] * res(lid_bato_chm)[2]) / 10000
+
+#
+#
+# Aggregate to TCH ----
+#
+#
+
+lid_bato_chm[lid_bato_chm<0]<-0
+uav_bato_chm[uav_bato_chm<0]<-0
+uav_bato_dsm[uav_bato_dsm<0]<-0
+uav_bato_orig_chm[uav_bato_orig_chm<0]<-0
+uav_bato_orig_dsm[uav_bato_orig_dsm<0]<-0
+
+scale <-50
+n_pix<-scale / res(lid_bato_chm)[1]
+
+lid_bato_dtm <- aggregate(lid_bato_dtm, fact = n_pix, fun = mean_cover)
+lid_bato_tpi_2.25ha<- tpiw(lid_bato_dtm, w = 3, coverage = 0.75)
+
+lid_bato_tch <- aggregate(lid_bato_chm, fact = n_pix, fun = mean_cover)
+uav_bato_tch <- aggregate(uav_bato_chm, fact = n_pix, fun = mean_cover)
+uav_bato_orig_tch <- aggregate(uav_bato_orig_chm, fact = n_pix, fun = mean_cover)
+
+uav_bato_tch_sd <- aggregate(uav_bato_chm, fact = n_pix, fun = sd)
+uav_bato_dsm_1ha<- aggregate(uav_bato_dsm, fact = n_pix, fun = mean_cover)
+uav_bato_orig_dsm_1ha<- aggregate(uav_bato_orig_dsm, fact = n_pix, fun = mean_cover)
+
+uav_bato_dsmtpi_2.25ha<- tpiw(uav_bato_dsm_1ha, w = 3, coverage = 0.75)
+uav_bato_orig_dsmtpi_2.25ha<- tpiw(uav_bato_orig_dsm_1ha, w = 3, coverage = 0.75)
+uav_bato_orig_tch_sd <- aggregate(uav_bato_orig_chm, fact = n_pix, fun = sd)
+
+# Create a raster stack for prediction:
+uav_bato_newdata<-stack(uav_bato_tch, uav_bato_dsmtpi_2.25ha, uav_bato_tch_sd)
+names(uav_bato_newdata)<-c("uav", "tpi", "tch_sd")
+
+# Predict the corrected values:
+uav_bato_tch_cor1 <- raster::predict(uav_bato_newdata, tch_fm1)
+uav_bato_tch_cor2 <- sqrt(raster::predict(uav_bato_newdata, tch_fm2))
+# uav_bato_tch_cor3 <- raster::predict(uav_bato_newdata, tch_fm3)
+# uav_bato_tch_cor4 <- sqrt(raster::predict(uav_bato_newdata, tch_fm4))
+uav_bato_tch_cor5 <- raster::predict(uav_bato_newdata, tch_fm5)
+uav_bato_tch_cor6 <- raster::predict(uav_bato_newdata, tch_fm6)
+uav_bato_tch_cor7 <- sqrt(raster::predict(uav_bato_newdata, tch_fm7))
+uav_bato_tch_cor8 <- sqrt(raster::predict(uav_bato_newdata, tch_fm8))
+
+# And now for the originals...
+uav_bato_orig_newdata<-stack(uav_bato_orig_tch, uav_bato_orig_dsmtpi_2.25ha, uav_bato_orig_tch_sd)
+names(uav_bato_orig_newdata)<-c("uav", "tpi", "tch_sd")
+
+uav_bato_orig_tch_cor1 <- raster::predict(uav_bato_orig_newdata, tch_fm1)
+uav_bato_orig_tch_cor2 <- sqrt(raster::predict(uav_bato_orig_newdata, tch_fm2))
+# uav_bato_orig_tch_cor3 <- raster::predict(uav_bato_orig_newdata, tch_fm3)
+# uav_bato_orig_tch_cor4 <- sqrt(raster::predict(uav_bato_orig_newdata, tch_fm4))
+uav_bato_orig_tch_cor5 <- raster::predict(uav_bato_orig_newdata, tch_fm5)
+uav_bato_orig_tch_cor6 <- raster::predict(uav_bato_orig_newdata, tch_fm6)
+uav_bato_orig_tch_cor7 <- sqrt(raster::predict(uav_bato_orig_newdata, tch_fm7))
+uav_bato_orig_tch_cor8 <- sqrt(raster::predict(uav_bato_orig_newdata, tch_fm8))
+
+
+# calculate agb
+lid_bato_agb<-raster_agb2(lid_bato_tch)
+uav_bato_agb<-raster_agb2(uav_bato_tch)
+uav_bato_cor1_agb<-raster_agb2(uav_bato_tch_cor1)
+uav_bato_cor2_agb<-raster_agb2(uav_bato_tch_cor2)
+# uav_bato_cor3_agb<-raster_agb2(uav_bato_tch_cor3)
+# uav_bato_cor4_agb<-raster_agb2(uav_bato_tch_cor4)
+uav_bato_cor5_agb<-raster_agb2(uav_bato_tch_cor5)
+uav_bato_cor6_agb<-raster_agb2(uav_bato_tch_cor6)
+uav_bato_cor7_agb<-raster_agb2(uav_bato_tch_cor7)
+uav_bato_cor8_agb<-raster_agb2(uav_bato_tch_cor8)
+uav_bato_orig_agb<-raster_agb2(uav_bato_orig_tch)
+uav_bato_orig_cor1_agb<-raster_agb2(uav_bato_orig_tch_cor1)
+uav_bato_orig_cor2_agb<-raster_agb2(uav_bato_orig_tch_cor2)
+# uav_bato_orig_cor3_agb<-raster_agb2(uav_bato_orig_tch_cor3)
+# uav_bato_orig_cor4_agb<-raster_agb2(uav_bato_orig_tch_cor4)
+uav_bato_orig_cor5_agb<-raster_agb2(uav_bato_orig_tch_cor5)
+uav_bato_orig_cor6_agb<-raster_agb2(uav_bato_orig_tch_cor6)
+uav_bato_orig_cor7_agb<-raster_agb2(uav_bato_orig_tch_cor7)
+uav_bato_orig_cor8_agb<-raster_agb2(uav_bato_orig_tch_cor8)
+
+```
+
+```{r}
+pdf("../../Figures/PeerJ/Bato_LiDAR.pdf", width = 5, height = 5)
+plot(lid_bato_chm, col=col.pal, breaks=col.breaks, colNA='black', axes=FALSE, legend=TRUE, box=FALSE)
+dev.off()
+
+pdf("../../Figures/PeerJ/Bato_SFM.pdf", width = 5, height = 5)
+plot(uav_bato_chm, col=col.pal, breaks=col.breaks, colNA='black', axes=FALSE, legend=TRUE, box=FALSE)
+dev.off()
+```
+
+
+```{r TCH independent validation}
+
+tch_bato<-data.frame(lid = values(lid_bato_tch),
+                uav = values(uav_bato_tch),
+                uav_cor1 = values(uav_bato_tch_cor1),
+                uav_cor2 = values(uav_bato_tch_cor2),
+                # uav_cor3 = values(uav_bato_tch_cor3),
+                # uav_cor4 = values(uav_bato_tch_cor4),
+                uav_cor5 = values(uav_bato_tch_cor5),
+                uav_cor6 = values(uav_bato_tch_cor6),
+                uav_cor7 = values(uav_bato_tch_cor7),
+                uav_cor8 = values(uav_bato_tch_cor8),
+                uav_orig = values(uav_bato_orig_tch),
+                uav_orig_cor1 = values(uav_bato_orig_tch_cor1),
+                uav_orig_cor2 = values(uav_bato_orig_tch_cor2),
+                # uav_orig_cor3 = values(uav_bato_orig_tch_cor3),
+                # uav_orig_cor4 = values(uav_bato_orig_tch_cor4),
+                uav_orig_cor5 = values(uav_bato_orig_tch_cor5),
+                uav_orig_cor6 = values(uav_bato_orig_tch_cor6),
+                uav_orig_cor7 = values(uav_bato_orig_tch_cor7),
+                uav_orig_cor8 = values(uav_bato_orig_tch_cor8),
+                lid_tpi = values(lid_bato_tpi_2.25ha)
+                ) %>%
+  na.omit
+
+limits<-c(7, 30)
+
+
+tch_comp_kapas <- tch %>%
+  tidyr::gather(key = "correction", value = "uav_tch", uav, matches("uav_cor")) %>%
+  mutate(correction = gsub("uav_cor", "Model ", correction)) %>%
+  mutate(correction = gsub("uav", "SFM", correction)) %>%
+  mutate(correction = relevel(as.factor(correction), ref = "SFM"))
+  
+tch_comp_bato <- tch_bato %>%
+  tidyr::gather(key = "correction", value = "uav_tch",
+  uav, matches("uav_cor")) %>%
+  mutate(lid2 = lid ^ 2) %>%
+  mutate(correction = gsub("uav_cor", "Model ", correction)) %>%
+  mutate(correction = gsub("uav", "SFM", correction)) %>%
+  mutate(correction = relevel(as.factor(correction), ref = "SFM"))
+
+# Produces the figure showing the TCH comparisons 
+pdf("../../Figures/PeerJ/TCH_correction.pdf",
+    width = 5, 
+    height = 5)
+tch_comp_kapas %>%
+  ggplot(aes(uav_tch, lid)) +
+  geom_point(size = 0.5, alpha = 0.5) +
+  geom_point(data = tch_comp_bato, size = 0.5, alpha = 0.5, color = "red") +
+  geom_abline(intercept =0, slope = 1) +
+  facet_wrap(~correction, ncol = 3) +
+  theme_minimal() +
+  xlab("SFM (m)") +
+  ylab("LiDAR (m)")
+dev.off()
+
+pdf("../../Figures/PeerJ/TCH_correction_2.pdf", height = 3.5, width = 7)
+tch_comp_kapas %>%
+  filter(correction %in% c("Model 1", "Model 2")) %>%
+  ggplot(aes(uav_tch, lid)) +
+  geom_point(size = 1, alpha = 0.4) +
+  geom_point(data = tch_comp_bato  %>% filter(correction %in% c("Model 1", "Model 2")), size = 1, alpha = 0.4, color = "red") +
+  geom_smooth(method = "lm", formula = y~x) + 
+  # geom_smooth(method = "lm", formula = y~poly(x, 2, raw = TRUE)) +
+  geom_abline(intercept =0, slope = 1) +
+  facet_wrap(~correction, ncol = 3) +
+  theme_cowplot() +
+  ylab(expression(paste("LiDAR (", m^2, ")"))) +
+  xlab("SFM (m)")
+dev.off()
+
+pdf("../../Figures/PeerJ/TCH_correction_1_indiv.pdf", height = 3.5, width = 3.5)
+tch_comp_kapas %>%
+  filter(correction %in% c("Model 1")) %>%
+  ggplot(aes(uav_tch, lid)) +
+  geom_point(size = 1, alpha = 0.4) +
+  geom_point(data = tch_comp_bato  %>% filter(correction %in% c("Model 1")), size = 1, alpha = 0.4, color = "red") +
+  # geom_smooth(method = "lm", formula = y~x) + 
+  # geom_smooth(method = "lm", formula = y~poly(x, 2, raw = TRUE)) +
+  geom_abline(intercept =0, slope = 1) +
+  theme_cowplot() +
+  ylab("LiDAR (m)") +
+  xlab("SFM (m)") +
+  xlim(0, 25) +
+  ylim(0, 25)
+dev.off()
+
+pdf("../../Figures/PeerJ/TCH_correction_2_indiv.pdf", height = 3.5, width = 3.5)
+tch_comp_kapas %>%
+  filter(correction %in% c("Model 2")) %>%
+  ggplot(aes(uav_tch, lid)) +
+  geom_point(size = 1, alpha = 0.4) +
+  geom_point(data = tch_comp_bato  %>% filter(correction %in% c("Model 2")), size = 1, alpha = 0.4, color = "red") +
+  # geom_smooth(method = "lm", formula = y~x) + 
+  # geom_smooth(method = "lm", formula = y~poly(x, 2, raw = TRUE)) +
+  geom_abline(intercept =0, slope = 1) +
+  theme_cowplot() +
+  ylab("LiDAR (m)") +
+  xlab("SFM (m)") +
+  xlim(0, 25) +
+  ylim(0, 25)
+dev.off()
+
+hist(values(uav_tch))
+
+tch_bato %>%
+  mutate(lidar = lid) %>%
+  tidyr::gather(key = "correction", value = "tch", lidar, uav, matches("uav_cor|uav_orig_cor")) %>%
+  group_by(correction) %>%
+  summarise(tch_mean = mean(tch), 
+            tch_sd = sd(tch),
+            tch_rsq = summary(lm(lid~tch))$adj.r.squared,
+            tch_rmse = rmse(lid, tch),
+            tch_bias = bias(lid, tch)
+            )
+
+
+test<-tch_comp_bato %>%
+  mutate(error = uav_tch - lid) %>%
+  filter(correction %in% c("Model 2")) %>%
+  ggplot(aes(lid_tpi, error)) +
+  geom_point(size = 1, alpha = 0.4) +
+  # geom_point(data = tch_comp_bato  %>% filter(correction %in% c("Model 2")), size = 1, alpha = 0.4, color = "red") +
+  # geom_smooth(method = "lm", formula = y~x) + 
+  # geom_smooth(method = "lm", formula = y~poly(x, 2, raw = TRUE)) +
+  geom_smooth(method = "lm") +
+  theme_cowplot() +
+  ylab("LiDAR (m)") +
+  xlab("SFM (m)") +
+  xlim(0, 25) +
+  ylim(0, 25)
+
+fm_bat_tpi_posthoc<-lm(error~lid_tpi, data = test)
+summary(fm_bat_tpi_posthoc)
+anova(fm_bat_tpi_posthoc)
+predict(fm_bat_tpi_posthoc, newdata = data.frame(lid_tpi=-0))
+
+
+```
+
+
+```{r}
+
+agb_bato<-data.frame(lid = values(lid_bato_agb),
+                uav = values(uav_bato_agb),
+                uav_cor1 = values(uav_bato_cor1_agb),
+                uav_cor2 = values(uav_bato_cor2_agb),
+                uav_cor5 = values(uav_bato_cor5_agb),
+                uav_cor6 = values(uav_bato_cor6_agb),
+                uav_cor7 = values(uav_bato_cor7_agb),
+                uav_cor8 = values(uav_bato_cor8_agb),
+                uav_orig = values(uav_bato_orig_agb),
+                uav_orig_cor1 = values(uav_bato_orig_cor1_agb),
+                uav_orig_cor2 = values(uav_bato_orig_cor2_agb)
+                ) %>%
+  na.omit
+
+tch_bato %>%
+  mutate(lid_agb = est_AGB(lid)) %>%
+  mutate(lidar = lid) %>%
+  tidyr::gather(key = "correction", value = "tch", lidar, uav, matches("uav_cor|uav_orig_cor")) %>%
+  mutate(agb = est_AGB(tch)) %>%
+  group_by(correction) %>%
+  summarise(tch_mean = mean(tch), 
+            tch_sd = sd(tch),
+            tch_rsq = summary(lm(lid~tch))$adj.r.squared,
+            tch_rmse = rmse(lid, tch),
+            tch_bias = bias(lid, tch), 
+            agb_mean = mean(agb), 
+            agb_sd = sd(agb),
+            agb_rsq = summary(lm(lid_agb~agb))$adj.r.squared,
+            agb_rmse = rmse(lid_agb, agb),
+            agb_bias = bias(lid_agb, agb),
+            agb_total = sum(agb)
+            )
+    
+# Prepare the data for plotting
+agb_comp_kapas <- tch %>%
+  mutate(lid_agb = est_AGB(lid)) %>%
+  mutate(lidar = lid) %>%
+  tidyr::gather(key = "correction", value = "uav_tch",
+  uav, matches("uav_cor")) %>%
+  mutate(lid2 = lid ^ 2) %>%
+  mutate(agb = est_AGB(uav_tch)) %>%
+  mutate(correction = gsub("uav_cor", "Model ", correction)) %>%
+  mutate(correction = gsub("uav", "SFM", correction)) %>%
+  mutate(correction = relevel(as.factor(correction), ref = "SFM"))
+
+agb_comp_bato <- tch_bato %>%
+  mutate(lid_agb = est_AGB(lid)) %>%
+  mutate(lidar = lid) %>%
+  tidyr::gather(key = "correction", value = "uav_tch",
+  uav, matches("uav_cor")) %>%
+  mutate(lid2 = lid ^ 2) %>%
+  mutate(agb = est_AGB(uav_tch)) %>%
+  mutate(correction = gsub("uav_cor", "Model ", correction)) %>%
+  mutate(correction = gsub("uav", "SFM", correction)) %>%
+  mutate(correction = relevel(as.factor(correction), ref = "SFM"))
+
+# Produces the figure showing the AGB comparisons 
+# pdf("../../Figures/PeerJ/AGB_correction.pdf",
+#     width = 7, 
+#     height = 3.5)
+agb_comp_kapas %>%
+  filter(correction %in% c("Model 1", "Model 2")) %>%
+  ggplot(aes(agb, lid_agb)) +
+  geom_point(size = 1, alpha = 0.4) +
+  geom_point(data = agb_comp_bato %>% filter(correction %in% c("Model 1", "Model 2")), size = 1, alpha = 0.4, color = "red") +
+  geom_abline(intercept =0, slope = 1) +
+  facet_wrap(~correction, ncol = 3) +
+  theme_minimal() +
+  xlab(expression(paste("SFM (tonnes ", ha^-1, ")"))) +
+  ylab(expression(paste("LiDAR (tonnes ", ha^-1, ")")))
+# dev.off()
+
+# Produces the figure showing the AGB comparisons 
+# pdf("../../Figures/PeerJ/AGB_correction_indiv1.pdf",
+#     width = 3.5, 
+#     height = 3.5)
+agb_comp_kapas %>%
+  filter(correction %in% c("Model 1")) %>%
+  ggplot(aes(agb, lid_agb)) +
+  geom_point(size = 1, alpha = 0.4) +
+  geom_point(data = agb_comp_bato %>% filter(correction %in% c("Model 1")), size = 1, alpha = 0.4, color = "red") +
+  geom_abline(intercept =0, slope = 1) +
+  theme_cowplot() +
+  xlab(expression(paste("SFM (tonnes ", ha^-1, ")"))) +
+  ylab(expression(paste("LiDAR (tonnes ", ha^-1, ")"))) +
+  xlim(0, 125) +
+  ylim(0, 125)
+# dev.off()
+
+# pdf("../../Figures/PeerJ/AGB_correction_indiv2.pdf",
+#     width = 3.5, 
+#     height = 3.5)
+agb_comp_kapas %>%
+  filter(correction %in% c("Model 2")) %>%
+  ggplot(aes(agb, lid_agb)) +
+  geom_point(size = 1, alpha = 0.4) +
+  geom_point(data = agb_comp_bato %>% filter(correction %in% c("Model 2")), size = 1, alpha = 0.4, color = "red") +
+  geom_abline(intercept =0, slope = 1) +
+  theme_cowplot() +
+  xlab(expression(paste("SFM (tonnes ", ha^-1, ")"))) +
+  ylab(expression(paste("LiDAR (tonnes ", ha^-1, ")"))) +
+  xlim(0, 125) +
+  ylim(0, 125)
+# dev.off()
+
+# Show the overall relationship for the ABG
+agb_bato %>% 
+  tidyr::gather(key = "uav_chm", value = "uav_agb", uav, matches("uav_cor")) %>%
+ggplot(aes(uav_agb, lid)) +
+  geom_point(alpha = 0.8, size = 0.5) +
+  geom_abline(intercept =0, slope = 1) +
+  geom_smooth(method= "lm", formula = y~poly(x, 2)) +
+  facet_wrap(~uav_chm)
+
+agb_bato %>% 
+ggplot(aes(uav_cor1, uav_cor5)) +
+  geom_point(alpha = 0.8, size = 0.5) +
+  geom_abline(intercept =0, slope = 1) +
+  geom_smooth(method= "lm", formula = y~poly(x, 2))
+
+mean(agb_bato$lid)
+mean(agb_bato$uav)
+mean(agb_bato$uav_orig)
+mean(agb_bato$uav_cor1)
+mean(agb_bato$uav_orig_cor1)
+mean(agb_bato$uav_cor2)
+mean(agb_bato$uav_orig_cor2)
+sd(agb_bato$lid)
+sd(agb_bato$uav)
+sd(agb_bato$uav_orig)
+sd(agb_bato$uav_cor1)
+sd(agb_bato$uav_orig_cor1)
+sd(agb_bato$uav_cor2)
+sd(agb_bato$uav_orig_cor2)
+RMSE(obs = agb_bato$lid , pred = agb_bato$uav)
+RMSE(obs = agb_bato$lid , pred = agb_bato$uav_orig)
+RMSE(obs = agb_bato$lid , pred = agb_bato$uav_cor1)
+RMSE(obs = agb_bato$lid , pred = agb_bato$uav_orig_cor1)
+RMSE(obs = agb_bato$lid , pred = agb_bato$uav_cor2)
+RMSE(obs = agb_bato$lid , pred = agb_bato$uav_orig_cor2)
+cor(agb_bato$lid ,agb_bato$uav)
+cor(agb_bato$lid ,agb_bato$uav_cor1)
+cor(agb_bato$lid ,agb_bato$uav_cor2)
+bias(agb_bato$lid ,agb_bato$uav)
+bias(agb_bato$lid ,agb_bato$uav_orig)
+bias(agb_bato$lid ,agb_bato$uav_cor1)
+bias(agb_bato$lid ,agb_bato$uav_orig_cor1)
+bias(agb_bato$lid ,agb_bato$uav_cor2)
+bias(agb_bato$lid ,agb_bato$uav_orig_cor2)
+sum(agb_bato$lid)
+sum(agb_bato$uav)
+sum(agb_bato$uav_orig)
+sum(agb_bato$uav_cor1)
+sum(agb_bato$uav_orig_cor1)
+sum(agb_bato$uav_cor2)
+sum(agb_bato$uav_orig_cor2)
+
+
+
+```
+
+
+
+
+```{r Plot AGB and error rasters, echo = FALSE}
+par(mfrow=c(1,3), mar = c(0.5,0.5,1,1))
+col.pal<-list(color = colorRampPalette(brewer.pal(9,"GnBu"))(10))$color
+col.breaks<-seq(0, 120, length=length(col.pal)+1)
+# LiDAR measured AGB
+plot(lid_agb, col=col.pal, breaks=col.breaks, colNA='black', axes=FALSE, legend=TRUE, box=FALSE)
+# UAV measured AGB
+plot(uav_agb, col=col.pal, breaks=col.breaks, colNA='black', axes=FALSE, legend=TRUE, box=FALSE)
+# Corrected UAV measured AGB
+plot(uav_cor2_agb, col=col.pal, breaks=col.breaks, colNA='black', axes=FALSE, legend=TRUE, box=FALSE)
+
+col.pal<-list(color = colorRampPalette(brewer.pal(9,"RdBu"))(10))$color
+col.breaks<-seq(-40, 40, length=length(col.pal)+1)
+# Absoute difference
+plot((uav_cor8_agb - lid_agb), col = col.pal, breaks=col.breaks, colNA='black', axes=FALSE, legend=TRUE, box=FALSE)
+col.pal<-list(color = colorRampPalette(brewer.pal(9,"RdBu"))(10))$color
+col.breaks<-seq(-1.5, 1.5, length=length(col.pal)+1)
+# Relative difference
+plot((uav_cor8_agb - lid_agb)/lid_agb, col = col.pal, breaks=col.breaks, colNA='black', axes=FALSE, legend=TRUE, box=FALSE)
+```
+
+
+```{r Plot Bato AGB and error rasters, echo = FALSE}
+par(mfrow=c(2,2), mar = c(0.5,0.5,1,1))
+col.pal<-list(color = colorRampPalette(brewer.pal(9,"GnBu"))(10))$color
+col.breaks<-seq(0, 150, length=length(col.pal)+1)
+# LiDAR measured AGB
+plot(lid_bato_agb, col=col.pal, breaks=col.breaks, colNA='black', axes=FALSE, legend=TRUE, box=FALSE)
+# UAV measured AGB
+plot(uav_bato_agb, col=col.pal, breaks=col.breaks, colNA='black', axes=FALSE, legend=TRUE, box=FALSE)
+# Corrected UAV measured AGB
+plot(uav_bato_cor1_agb, col=col.pal, breaks=col.breaks, colNA='black', axes=FALSE, legend=TRUE, box=FALSE)
+# Corrected UAV measured AGB
+plot(uav_bato_orig_cor1_agb, col=col.pal, breaks=col.breaks, colNA='black', axes=FALSE, legend=TRUE, box=FALSE)
+
+#writeRaster(uav_bato_cor2_agb - lid_bato_agb, "../../data/raster/agb_bato_liduav_diff.tif")
+
+col.pal<-list(color = colorRampPalette(brewer.pal(9,"RdBu"))(10))$color
+col.breaks<-seq(-40, 40, length=length(col.pal)+1)
+# Absoute difference
+plot((uav_bato_cor1_agb - lid_bato_agb), col = col.pal, breaks=col.breaks, colNA='black', axes=FALSE, legend=TRUE, box=FALSE)
+col.pal<-list(color = colorRampPalette(brewer.pal(9,"RdBu"))(10))$color
+col.breaks<-seq(-0.5, 0.5, length=length(col.pal)+1)
+# Relative difference
+plot((uav_bato_cor1_agb - lid_bato_agb)/lid_bato_agb, col = col.pal, breaks=col.breaks, colNA='black', axes=FALSE, legend=TRUE, box=FALSE)
+
+
+```
+
+```{r}
+
+error_bato<-data.frame(error = values(uav_bato_cor1_agb - lid_bato_agb),
+                dtm = values(lid_bato_dtm),
+                tpi = values(lid_bato_tpi_2.25ha),
+                dsm_tpi = values(uav_bato_dsmtpi_2.25ha))%>%
+  na.omit
+
+ggplot(error_bato, aes(x = tpi, y = error)) +
+  geom_point() +
+  geom_hline(aes(yintercept = 0)) +
+  geom_smooth(method = "lm") +
+  geom_smooth()
+
+# TPI explains about 17% of the variation
+# THE UAV measured canopy roughness explains a little bit as well.
+error_lm<-lm(error~tpi*dsm_tpi, data = error_bato)
+summary(error_lm)
+anova(error_lm)
+
+```
+
+
+```{r}
+sum(agb_bato$lid, na.rm = TRUE)
+sum(agb_bato$uav, na.rm = TRUE)
+sum(agb_bato$uav_cor1, na.rm = TRUE)
+sum(agb_bato$uav_cor2, na.rm = TRUE)
+sum(agb_bato$uav_orig_cor2, na.rm = TRUE)
+```
+
+```{r}
+#
+#
+# Compare distributions ----
+#
+# Compare the distribution of top canopy height when calculated from the
+# original CHM and the georeferenced CHM.
+#
+#
+
+# Mask lidar and uav to each others' extent
+uav_dsm_orig<-raster("data/raster/uav_dsm_bato_cropped.tif")
+uav_chm_orig<-raster("data/raster/uav_chm_bato_cropped.tif")
+
+uav_chm_orig<-uav_dsm-uav_dtm
+uav_chm_orig[uav_chm_orig<0]<-NA
+uav_chm_orig[uav_chm_orig>70]<-NA
+
+uav_chm_georef<-raster("../../data/raster/Products/CHM_photoscan_wo_markers7and8_georef.tif")
+range(values(uav_chm_georef), na.rm = TRUE)
+uav_chm_georef[uav_chm_georef<0]<-NA
+uav_chm_georef[uav_chm_georef>70]<-NA
+
+# Crop the lidar rasters to the extent of the UAV DSM
+uav_chm_orig<-crop(uav_chm_orig, min_extent(uav_chm_orig, uav_chm_georef))
+uav_chm_georef<-crop(uav_chm_georef, min_extent(uav_chm_orig, uav_chm_georef))
+
+par(mfrow=c(1,2))
+plot(uav_chm_orig)
+plot(uav_chm_georef)
+
+uav_chm_georef<-resample(uav_chm_georef, uav_chm_orig) # Align the rasters
+
+uav_chm_georef<-mask(uav_chm_georef, uav_chm_orig) # crops uav to lidar
+uav_chm_orig<-mask(uav_chm_orig, uav_chm_georef) # crops lidar to new uav extent
+uav_chm_georef<-mask(uav_chm_georef, uav_chm_orig) # crops uav to new lidar extent - they should be the same now
+
+# trim off the NAs
+uav_chm_orig <- trim(uav_chm_orig)
+uav_chm_georef <- trim(uav_chm_georef)
+
+par(mfrow=c(1,2))
+plot(uav_chm_orig)
+plot(uav_chm_georef)
+
+# Now crop away the distorted margin:
+aoi<-drawPoly(sp=TRUE, col='red', lwd=2) # !!! You have to do this by hand on the plotted image
+plot(aoi, col = "blue", add = TRUE)
+uav_chm_orig<-mask(uav_chm_orig, aoi)
+uav_chm_georef<-mask(uav_chm_georef, aoi)
+uav_chm_orig <- trim(uav_chm_orig)
+uav_chm_georef <- trim(uav_chm_georef)
+
+```
+
+```{r}
+# Convert to TCH
+scale <-100
+n_pix<-as.integer(scale / res(uav_chm_orig)[1])
+uav_tch_orig <- aggregate(uav_chm_orig, fact = n_pix, fun = mean)
+uav_tch_georef <- aggregate(uav_chm_georef, fact = n_pix, fun = mean)
+
+
+tch<-rbind(data.frame(model = "orig", tch = values(uav_tch_orig)),
+           data.frame(model = "georef", tch = values(uav_tch_georef))
+)
+
+# Plot out
+tch %>%
+  ggplot(aes(tch)) +
+  geom_histogram(alpha = 0.5) +
+  facet_wrap(~model, nrow = 2)
+
+# They are very similar
+```
+
+
+
+

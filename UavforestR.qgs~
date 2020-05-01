@@ -1,0 +1,618 @@
+<!DOCTYPE qgis PUBLIC 'http://mrcc.com/qgis.dtd' 'SYSTEM'>
+<qgis projectname="" version="2.18.2">
+  <title></title>
+  <autotransaction active="0"/>
+  <evaluateDefaultValues active="0"/>
+  <layer-tree-group expanded="1" checked="Qt::PartiallyChecked" name="">
+    <customproperties/>
+    <layer-tree-layer expanded="1" checked="Qt::Unchecked" id="DSM_photoscan_wo_markers7and8_linear_nn20180726143100306" name="DSM_photoscan_wo_markers7and8_linear_nn">
+      <customproperties/>
+    </layer-tree-layer>
+    <layer-tree-layer expanded="0" checked="Qt::Unchecked" id="DSM_photoscan_wo_markers7and820180726142856940" name="DSM_photoscan_wo_markers7and8">
+      <customproperties/>
+    </layer-tree-layer>
+    <layer-tree-layer expanded="0" checked="Qt::Unchecked" id="uav_chm_matched_cropped20180726103057377" name="uav_chm_matched_cropped">
+      <customproperties/>
+    </layer-tree-layer>
+    <layer-tree-layer expanded="0" checked="Qt::Checked" id="lid_chm_matched_cropped20180726120811300" name="lid_chm_matched_cropped">
+      <customproperties/>
+    </layer-tree-layer>
+    <layer-tree-layer expanded="1" checked="Qt::Unchecked" id="agb_bato_liduav_diff20180801150526462" name="agb_bato_liduav_diff">
+      <customproperties/>
+    </layer-tree-layer>
+    <layer-tree-layer expanded="0" checked="Qt::Unchecked" id="uav_chm_bato_georef_cropped20180801150234535" name="uav_chm_bato_georef_cropped">
+      <customproperties/>
+    </layer-tree-layer>
+    <layer-tree-layer expanded="0" checked="Qt::Unchecked" id="uav_chm_bato_cropped20180726102243667" name="uav_chm_bato_cropped">
+      <customproperties/>
+    </layer-tree-layer>
+    <layer-tree-layer expanded="0" checked="Qt::Checked" id="lid_chm_bato_cropped20180726120811273" name="lid_chm_bato_cropped">
+      <customproperties/>
+    </layer-tree-layer>
+  </layer-tree-group>
+  <relations/>
+  <mapcanvas>
+    <units>meters</units>
+    <extent>
+      <xmin>310142.82635155681055039</xmin>
+      <ymin>9751759.00761513411998749</ymin>
+      <xmax>310429.96569142665248364</xmax>
+      <ymax>9752209.14394249022006989</ymax>
+    </extent>
+    <rotation>0</rotation>
+    <projections>1</projections>
+    <destinationsrs>
+      <spatialrefsys>
+        <proj4>+proj=utm +zone=48 +south +datum=WGS84 +units=m +no_defs</proj4>
+        <srsid>3198</srsid>
+        <srid>32748</srid>
+        <authid>EPSG:32748</authid>
+        <description>WGS 84 / UTM zone 48S</description>
+        <projectionacronym>utm</projectionacronym>
+        <ellipsoidacronym>WGS84</ellipsoidacronym>
+        <geographicflag>false</geographicflag>
+      </spatialrefsys>
+    </destinationsrs>
+    <rendermaptile>0</rendermaptile>
+    <layer_coordinate_transform_info>
+      <layer_coordinate_transform destAuthId="EPSG:32748" srcAuthId="EPSG:32748" srcDatumTransform="-1" destDatumTransform="-1" layerid="uav_chm_bato_cropped20180726102243667"/>
+      <layer_coordinate_transform destAuthId="EPSG:32748" srcAuthId="EPSG:32748" srcDatumTransform="-1" destDatumTransform="-1" layerid="lid_chm_matched_cropped20180726120811300"/>
+      <layer_coordinate_transform destAuthId="EPSG:32748" srcAuthId="EPSG:32748" srcDatumTransform="-1" destDatumTransform="-1" layerid="uav_dsm_bato_georef_cropped20180801150205065"/>
+      <layer_coordinate_transform destAuthId="EPSG:32748" srcAuthId="EPSG:32748" srcDatumTransform="-1" destDatumTransform="-1" layerid="agb_bato_liduav_diff20180801150526462"/>
+      <layer_coordinate_transform destAuthId="EPSG:32748" srcAuthId="EPSG:32650" srcDatumTransform="-1" destDatumTransform="-1" layerid="SAFEPoints_landscape_covariates20180731144006394"/>
+      <layer_coordinate_transform destAuthId="EPSG:32748" srcAuthId="EPSG:32748" srcDatumTransform="-1" destDatumTransform="-1" layerid="lid_chm_bato_cropped20180726120811273"/>
+      <layer_coordinate_transform destAuthId="EPSG:32748" srcAuthId="EPSG:32748" srcDatumTransform="-1" destDatumTransform="-1" layerid="uav_chm_bato_georef_cropped20180801150234535"/>
+    </layer_coordinate_transform_info>
+  </mapcanvas>
+  <layer-tree-canvas>
+    <custom-order enabled="0">
+      <item>uav_chm_bato_cropped20180726102243667</item>
+      <item>uav_chm_matched_cropped20180726103057377</item>
+      <item>lid_chm_bato_cropped20180726120811273</item>
+      <item>lid_chm_matched_cropped20180726120811300</item>
+      <item>DSM_photoscan_wo_markers7and820180726142856940</item>
+      <item>DSM_photoscan_wo_markers7and8_linear_nn20180726143100306</item>
+      <item>uav_chm_bato_georef_cropped20180801150234535</item>
+      <item>agb_bato_liduav_diff20180801150526462</item>
+    </custom-order>
+  </layer-tree-canvas>
+  <legend updateDrawingOrder="true">
+    <legendlayer drawingOrder="-1" open="true" checked="Qt::Unchecked" name="DSM_photoscan_wo_markers7and8_linear_nn" showFeatureCount="0">
+      <filegroup open="true" hidden="false">
+        <legendlayerfile isInOverview="0" layerid="DSM_photoscan_wo_markers7and8_linear_nn20180726143100306" visible="0"/>
+      </filegroup>
+    </legendlayer>
+    <legendlayer drawingOrder="-1" open="false" checked="Qt::Unchecked" name="DSM_photoscan_wo_markers7and8" showFeatureCount="0">
+      <filegroup open="false" hidden="false">
+        <legendlayerfile isInOverview="0" layerid="DSM_photoscan_wo_markers7and820180726142856940" visible="0"/>
+      </filegroup>
+    </legendlayer>
+    <legendlayer drawingOrder="-1" open="false" checked="Qt::Unchecked" name="uav_chm_matched_cropped" showFeatureCount="0">
+      <filegroup open="false" hidden="false">
+        <legendlayerfile isInOverview="0" layerid="uav_chm_matched_cropped20180726103057377" visible="0"/>
+      </filegroup>
+    </legendlayer>
+    <legendlayer drawingOrder="-1" open="false" checked="Qt::Checked" name="lid_chm_matched_cropped" showFeatureCount="0">
+      <filegroup open="false" hidden="false">
+        <legendlayerfile isInOverview="0" layerid="lid_chm_matched_cropped20180726120811300" visible="1"/>
+      </filegroup>
+    </legendlayer>
+    <legendlayer drawingOrder="-1" open="true" checked="Qt::Unchecked" name="agb_bato_liduav_diff" showFeatureCount="0">
+      <filegroup open="true" hidden="false">
+        <legendlayerfile isInOverview="0" layerid="agb_bato_liduav_diff20180801150526462" visible="0"/>
+      </filegroup>
+    </legendlayer>
+    <legendlayer drawingOrder="-1" open="false" checked="Qt::Unchecked" name="uav_chm_bato_georef_cropped" showFeatureCount="0">
+      <filegroup open="false" hidden="false">
+        <legendlayerfile isInOverview="0" layerid="uav_chm_bato_georef_cropped20180801150234535" visible="0"/>
+      </filegroup>
+    </legendlayer>
+    <legendlayer drawingOrder="-1" open="false" checked="Qt::Unchecked" name="uav_chm_bato_cropped" showFeatureCount="0">
+      <filegroup open="false" hidden="false">
+        <legendlayerfile isInOverview="0" layerid="uav_chm_bato_cropped20180726102243667" visible="0"/>
+      </filegroup>
+    </legendlayer>
+    <legendlayer drawingOrder="-1" open="false" checked="Qt::Checked" name="lid_chm_bato_cropped" showFeatureCount="0">
+      <filegroup open="false" hidden="false">
+        <legendlayerfile isInOverview="0" layerid="lid_chm_bato_cropped20180726120811273" visible="1"/>
+      </filegroup>
+    </legendlayer>
+  </legend>
+  <mapcanvas>
+    <units>degrees</units>
+    <extent>
+      <xmin>309573.24733118299627677</xmin>
+      <ymin>9751289.95930919051170349</ymin>
+      <xmax>311010.24733118299627677</xmax>
+      <ymax>9752666.95930919051170349</ymax>
+    </extent>
+    <rotation>0</rotation>
+    <projections>0</projections>
+    <destinationsrs>
+      <spatialrefsys>
+        <proj4>+proj=longlat +datum=WGS84 +no_defs</proj4>
+        <srsid>3452</srsid>
+        <srid>4326</srid>
+        <authid>EPSG:4326</authid>
+        <description>WGS 84</description>
+        <projectionacronym>longlat</projectionacronym>
+        <ellipsoidacronym>WGS84</ellipsoidacronym>
+        <geographicflag>true</geographicflag>
+      </spatialrefsys>
+    </destinationsrs>
+    <rendermaptile>0</rendermaptile>
+    <layer_coordinate_transform_info/>
+  </mapcanvas>
+  <projectlayers>
+    <maplayer minimumScale="0" maximumScale="1e+08" type="raster" hasScaleBasedVisibilityFlag="0">
+      <extent>
+        <xmin>309573.24733118299627677</xmin>
+        <ymin>9751289.95930919051170349</ymin>
+        <xmax>311010.24733118299627677</xmax>
+        <ymax>9752666.95930919051170349</ymax>
+      </extent>
+      <id>DSM_photoscan_wo_markers7and820180726142856940</id>
+      <datasource>/Users/Tom/Documents/Work/Rprojects/UAVforestR/data/raster/Products/DSM_photoscan_wo_markers7and8.tif</datasource>
+      <keywordList>
+        <value></value>
+      </keywordList>
+      <layername>DSM_photoscan_wo_markers7and8</layername>
+      <srs>
+        <spatialrefsys>
+          <proj4>+proj=utm +zone=48 +south +datum=WGS84 +units=m +no_defs</proj4>
+          <srsid>3198</srsid>
+          <srid>32748</srid>
+          <authid>EPSG:32748</authid>
+          <description>WGS 84 / UTM zone 48S</description>
+          <projectionacronym>utm</projectionacronym>
+          <ellipsoidacronym>WGS84</ellipsoidacronym>
+          <geographicflag>false</geographicflag>
+        </spatialrefsys>
+      </srs>
+      <customproperties>
+        <property key="identify/format" value="Value"/>
+      </customproperties>
+      <provider>gdal</provider>
+      <noData>
+        <noDataList bandNo="1" useSrcNoData="1"/>
+      </noData>
+      <map-layer-style-manager current="">
+        <map-layer-style name=""/>
+      </map-layer-style-manager>
+      <pipe>
+        <rasterrenderer gradient="BlackToWhite" opacity="1" alphaBand="-1" type="singlebandgray" grayBand="1">
+          <rasterTransparency/>
+          <contrastEnhancement>
+            <minValue>19.9826040892601</minValue>
+            <maxValue>102.42365762615204</maxValue>
+            <algorithm>StretchToMinimumMaximum</algorithm>
+          </contrastEnhancement>
+        </rasterrenderer>
+        <brightnesscontrast brightness="0" contrast="0"/>
+        <huesaturation colorizeGreen="128" colorizeOn="0" colorizeRed="255" colorizeBlue="128" grayscaleMode="0" saturation="0" colorizeStrength="100"/>
+        <rasterresampler maxOversampling="2"/>
+      </pipe>
+      <blendMode>0</blendMode>
+    </maplayer>
+    <maplayer minimumScale="0" maximumScale="1e+08" type="raster" hasScaleBasedVisibilityFlag="0">
+      <extent>
+        <xmin>309536.25413348810980096</xmin>
+        <ymin>9751253.26928477734327316</ymin>
+        <xmax>311047.05456322029931471</xmax>
+        <ymax>9752719.1211542971432209</ymax>
+      </extent>
+      <id>DSM_photoscan_wo_markers7and8_linear_nn20180726143100306</id>
+      <datasource>/Users/Tom/Documents/Work/Rprojects/UAVforestR/data/raster/Products/DSM_photoscan_wo_markers7and8_linear_nn.tif</datasource>
+      <keywordList>
+        <value></value>
+      </keywordList>
+      <layername>DSM_photoscan_wo_markers7and8_linear_nn</layername>
+      <srs>
+        <spatialrefsys>
+          <proj4>+proj=utm +zone=48 +south +datum=WGS84 +units=m +no_defs</proj4>
+          <srsid>3198</srsid>
+          <srid>32748</srid>
+          <authid>EPSG:32748</authid>
+          <description>WGS 84 / UTM zone 48S</description>
+          <projectionacronym>utm</projectionacronym>
+          <ellipsoidacronym>WGS84</ellipsoidacronym>
+          <geographicflag>false</geographicflag>
+        </spatialrefsys>
+      </srs>
+      <customproperties>
+        <property key="identify/format" value="Value"/>
+      </customproperties>
+      <provider>gdal</provider>
+      <noData>
+        <noDataList bandNo="1" useSrcNoData="1"/>
+      </noData>
+      <map-layer-style-manager current="">
+        <map-layer-style name=""/>
+      </map-layer-style-manager>
+      <pipe>
+        <rasterrenderer gradient="BlackToWhite" opacity="1" alphaBand="-1" type="singlebandgray" grayBand="1">
+          <rasterTransparency/>
+          <contrastEnhancement>
+            <minValue>19.160157693862914</minValue>
+            <maxValue>102.72708052992822</maxValue>
+            <algorithm>StretchToMinimumMaximum</algorithm>
+          </contrastEnhancement>
+        </rasterrenderer>
+        <brightnesscontrast brightness="0" contrast="0"/>
+        <huesaturation colorizeGreen="128" colorizeOn="0" colorizeRed="255" colorizeBlue="128" grayscaleMode="0" saturation="0" colorizeStrength="100"/>
+        <rasterresampler maxOversampling="2"/>
+      </pipe>
+      <blendMode>0</blendMode>
+    </maplayer>
+    <maplayer minimumScale="inf" maximumScale="1e+08" type="raster" hasScaleBasedVisibilityFlag="0">
+      <extent>
+        <xmin>309861</xmin>
+        <ymin>9751447.5</ymin>
+        <xmax>310811</xmax>
+        <ymax>9752447.5</ymax>
+      </extent>
+      <id>agb_bato_liduav_diff20180801150526462</id>
+      <datasource>/Users/Tom/Documents/Work/Rprojects/UAVforestR/data/raster/agb_bato_liduav_diff.tif</datasource>
+      <keywordList>
+        <value></value>
+      </keywordList>
+      <layername>agb_bato_liduav_diff</layername>
+      <srs>
+        <spatialrefsys>
+          <proj4>+proj=utm +zone=48 +south +datum=WGS84 +units=m +no_defs</proj4>
+          <srsid>3198</srsid>
+          <srid>32748</srid>
+          <authid>EPSG:32748</authid>
+          <description>WGS 84 / UTM zone 48S</description>
+          <projectionacronym>utm</projectionacronym>
+          <ellipsoidacronym>WGS84</ellipsoidacronym>
+          <geographicflag>false</geographicflag>
+        </spatialrefsys>
+      </srs>
+      <customproperties>
+        <property key="embeddedWidgets/count" value="0"/>
+        <property key="identify/format" value="Value"/>
+      </customproperties>
+      <provider>gdal</provider>
+      <noData>
+        <noDataList bandNo="1" useSrcNoData="1"/>
+      </noData>
+      <map-layer-style-manager current="">
+        <map-layer-style name=""/>
+      </map-layer-style-manager>
+      <pipe>
+        <rasterrenderer opacity="1" alphaBand="0" classificationMax="40" classificationMinMaxOrigin="User" band="1" classificationMin="-40" type="singlebandpseudocolor">
+          <rasterTransparency/>
+          <rastershader>
+            <colorrampshader colorRampType="INTERPOLATED" clip="0">
+              <item alpha="255" value="-40" label="-40" color="#ca0020"/>
+              <item alpha="255" value="-20" label="-20" color="#f4a582"/>
+              <item alpha="255" value="0" label="0" color="#f7f7f7"/>
+              <item alpha="255" value="20" label="20" color="#92c5de"/>
+              <item alpha="255" value="40" label="40" color="#0571b0"/>
+            </colorrampshader>
+          </rastershader>
+        </rasterrenderer>
+        <brightnesscontrast brightness="0" contrast="0"/>
+        <huesaturation colorizeGreen="128" colorizeOn="0" colorizeRed="255" colorizeBlue="128" grayscaleMode="0" saturation="0" colorizeStrength="100"/>
+        <rasterresampler maxOversampling="2"/>
+      </pipe>
+      <blendMode>0</blendMode>
+    </maplayer>
+    <maplayer minimumScale="inf" maximumScale="1e+08" type="raster" hasScaleBasedVisibilityFlag="0">
+      <extent>
+        <xmin>309838</xmin>
+        <ymin>9751497</ymin>
+        <xmax>310788.5</xmax>
+        <ymax>9752454.5</ymax>
+      </extent>
+      <id>lid_chm_bato_cropped20180726120811273</id>
+      <datasource>/Users/Tom/Documents/Work/Rprojects/UAVforestR/data/raster/lid_chm_bato_cropped.tif</datasource>
+      <keywordList>
+        <value></value>
+      </keywordList>
+      <layername>lid_chm_bato_cropped</layername>
+      <srs>
+        <spatialrefsys>
+          <proj4>+proj=utm +zone=48 +south +datum=WGS84 +units=m +no_defs</proj4>
+          <srsid>3198</srsid>
+          <srid>32748</srid>
+          <authid>EPSG:32748</authid>
+          <description>WGS 84 / UTM zone 48S</description>
+          <projectionacronym>utm</projectionacronym>
+          <ellipsoidacronym>WGS84</ellipsoidacronym>
+          <geographicflag>false</geographicflag>
+        </spatialrefsys>
+      </srs>
+      <customproperties>
+        <property key="identify/format" value="Value"/>
+      </customproperties>
+      <provider>gdal</provider>
+      <noData>
+        <noDataList bandNo="1" useSrcNoData="1"/>
+      </noData>
+      <map-layer-style-manager current="">
+        <map-layer-style name=""/>
+      </map-layer-style-manager>
+      <pipe>
+        <rasterrenderer opacity="1" alphaBand="0" classificationMax="35" classificationMinMaxOrigin="User" band="1" classificationMin="0" type="singlebandpseudocolor">
+          <rasterTransparency/>
+          <rastershader>
+            <colorrampshader colorRampType="INTERPOLATED" clip="0">
+              <item alpha="255" value="0" label="0" color="#f0f9e8"/>
+              <item alpha="255" value="8.75" label="8.75" color="#bae4bc"/>
+              <item alpha="255" value="17.5" label="17.5" color="#7bccc4"/>
+              <item alpha="255" value="26.2" label="26.2" color="#43a2ca"/>
+              <item alpha="255" value="35" label="35" color="#0868ac"/>
+            </colorrampshader>
+          </rastershader>
+        </rasterrenderer>
+        <brightnesscontrast brightness="0" contrast="0"/>
+        <huesaturation colorizeGreen="128" colorizeOn="0" colorizeRed="255" colorizeBlue="128" grayscaleMode="0" saturation="0" colorizeStrength="100"/>
+        <rasterresampler maxOversampling="2"/>
+      </pipe>
+      <blendMode>0</blendMode>
+    </maplayer>
+    <maplayer minimumScale="inf" maximumScale="1e+08" type="raster" hasScaleBasedVisibilityFlag="0">
+      <extent>
+        <xmin>313330.87174290465191007</xmin>
+        <ymin>9745669.3670958299189806</ymin>
+        <xmax>314166.19673645502189174</xmax>
+        <ymax>9747606.01442724466323853</ymax>
+      </extent>
+      <id>lid_chm_matched_cropped20180726120811300</id>
+      <datasource>/Users/Tom/Documents/Work/Rprojects/UAVforestR/data/raster/lid_chm_matched_cropped.tif</datasource>
+      <keywordList>
+        <value></value>
+      </keywordList>
+      <layername>lid_chm_matched_cropped</layername>
+      <srs>
+        <spatialrefsys>
+          <proj4>+proj=utm +zone=48 +south +datum=WGS84 +units=m +no_defs</proj4>
+          <srsid>3198</srsid>
+          <srid>32748</srid>
+          <authid>EPSG:32748</authid>
+          <description>WGS 84 / UTM zone 48S</description>
+          <projectionacronym>utm</projectionacronym>
+          <ellipsoidacronym>WGS84</ellipsoidacronym>
+          <geographicflag>false</geographicflag>
+        </spatialrefsys>
+      </srs>
+      <customproperties>
+        <property key="identify/format" value="Value"/>
+      </customproperties>
+      <provider>gdal</provider>
+      <noData>
+        <noDataList bandNo="1" useSrcNoData="1"/>
+      </noData>
+      <map-layer-style-manager current="">
+        <map-layer-style name=""/>
+      </map-layer-style-manager>
+      <pipe>
+        <rasterrenderer opacity="1" alphaBand="0" classificationMax="35" classificationMinMaxOrigin="User" band="1" classificationMin="0" type="singlebandpseudocolor">
+          <rasterTransparency/>
+          <rastershader>
+            <colorrampshader colorRampType="INTERPOLATED" clip="0">
+              <item alpha="255" value="0" label="0" color="#f0f9e8"/>
+              <item alpha="255" value="8.75" label="8.75" color="#bae4bc"/>
+              <item alpha="255" value="17.5" label="17.5" color="#7bccc4"/>
+              <item alpha="255" value="26.2" label="26.2" color="#43a2ca"/>
+              <item alpha="255" value="35" label="35" color="#0868ac"/>
+            </colorrampshader>
+          </rastershader>
+        </rasterrenderer>
+        <brightnesscontrast brightness="0" contrast="0"/>
+        <huesaturation colorizeGreen="128" colorizeOn="0" colorizeRed="255" colorizeBlue="128" grayscaleMode="0" saturation="0" colorizeStrength="100"/>
+        <rasterresampler maxOversampling="2"/>
+      </pipe>
+      <blendMode>0</blendMode>
+    </maplayer>
+    <maplayer minimumScale="inf" maximumScale="1e+08" type="raster" hasScaleBasedVisibilityFlag="0">
+      <extent>
+        <xmin>309838</xmin>
+        <ymin>9751494</ymin>
+        <xmax>310788.5</xmax>
+        <ymax>9752454.5</ymax>
+      </extent>
+      <id>uav_chm_bato_cropped20180726102243667</id>
+      <datasource>/Users/Tom/Documents/Work/Rprojects/UAVforestR/data/raster/uav_chm_bato_cropped.tif</datasource>
+      <keywordList>
+        <value></value>
+      </keywordList>
+      <layername>uav_chm_bato_cropped</layername>
+      <srs>
+        <spatialrefsys>
+          <proj4>+proj=utm +zone=48 +south +datum=WGS84 +units=m +no_defs</proj4>
+          <srsid>3198</srsid>
+          <srid>32748</srid>
+          <authid>EPSG:32748</authid>
+          <description>WGS 84 / UTM zone 48S</description>
+          <projectionacronym>utm</projectionacronym>
+          <ellipsoidacronym>WGS84</ellipsoidacronym>
+          <geographicflag>false</geographicflag>
+        </spatialrefsys>
+      </srs>
+      <customproperties>
+        <property key="identify/format" value="Value"/>
+      </customproperties>
+      <provider>gdal</provider>
+      <noData>
+        <noDataList bandNo="1" useSrcNoData="1"/>
+      </noData>
+      <map-layer-style-manager current="">
+        <map-layer-style name=""/>
+      </map-layer-style-manager>
+      <pipe>
+        <rasterrenderer opacity="1" alphaBand="0" classificationMax="35" classificationMinMaxOrigin="User" band="1" classificationMin="0" type="singlebandpseudocolor">
+          <rasterTransparency/>
+          <rastershader>
+            <colorrampshader colorRampType="INTERPOLATED" clip="0">
+              <item alpha="255" value="0" label="0" color="#f0f9e8"/>
+              <item alpha="255" value="8.75" label="8.75" color="#bae4bc"/>
+              <item alpha="255" value="17.5" label="17.5" color="#7bccc4"/>
+              <item alpha="255" value="26.2" label="26.2" color="#43a2ca"/>
+              <item alpha="255" value="35" label="35" color="#0868ac"/>
+            </colorrampshader>
+          </rastershader>
+        </rasterrenderer>
+        <brightnesscontrast brightness="0" contrast="0"/>
+        <huesaturation colorizeGreen="128" colorizeOn="0" colorizeRed="255" colorizeBlue="128" grayscaleMode="0" saturation="0" colorizeStrength="100"/>
+        <rasterresampler maxOversampling="2"/>
+      </pipe>
+      <blendMode>0</blendMode>
+    </maplayer>
+    <maplayer minimumScale="inf" maximumScale="1e+08" type="raster" hasScaleBasedVisibilityFlag="0">
+      <extent>
+        <xmin>309861</xmin>
+        <ymin>9751494.5</ymin>
+        <xmax>310779.5</xmax>
+        <ymax>9752447.5</ymax>
+      </extent>
+      <id>uav_chm_bato_georef_cropped20180801150234535</id>
+      <datasource>/Users/Tom/Documents/Work/Rprojects/UAVforestR/data/raster/uav_chm_bato_georef_cropped.tif</datasource>
+      <keywordList>
+        <value></value>
+      </keywordList>
+      <layername>uav_chm_bato_georef_cropped</layername>
+      <srs>
+        <spatialrefsys>
+          <proj4>+proj=utm +zone=48 +south +datum=WGS84 +units=m +no_defs</proj4>
+          <srsid>3198</srsid>
+          <srid>32748</srid>
+          <authid>EPSG:32748</authid>
+          <description>WGS 84 / UTM zone 48S</description>
+          <projectionacronym>utm</projectionacronym>
+          <ellipsoidacronym>WGS84</ellipsoidacronym>
+          <geographicflag>false</geographicflag>
+        </spatialrefsys>
+      </srs>
+      <customproperties>
+        <property key="identify/format" value="Value"/>
+      </customproperties>
+      <provider>gdal</provider>
+      <noData>
+        <noDataList bandNo="1" useSrcNoData="1"/>
+      </noData>
+      <map-layer-style-manager current="">
+        <map-layer-style name=""/>
+      </map-layer-style-manager>
+      <pipe>
+        <rasterrenderer opacity="1" alphaBand="0" classificationMax="35" classificationMinMaxOrigin="User" band="1" classificationMin="0" type="singlebandpseudocolor">
+          <rasterTransparency/>
+          <rastershader>
+            <colorrampshader colorRampType="INTERPOLATED" clip="0">
+              <item alpha="255" value="0" label="0" color="#f0f9e8"/>
+              <item alpha="255" value="8.75" label="8.75" color="#bae4bc"/>
+              <item alpha="255" value="17.5" label="17.5" color="#7bccc4"/>
+              <item alpha="255" value="26.2" label="26.2" color="#43a2ca"/>
+              <item alpha="255" value="35" label="35" color="#0868ac"/>
+            </colorrampshader>
+          </rastershader>
+        </rasterrenderer>
+        <brightnesscontrast brightness="0" contrast="0"/>
+        <huesaturation colorizeGreen="128" colorizeOn="0" colorizeRed="255" colorizeBlue="128" grayscaleMode="0" saturation="0" colorizeStrength="100"/>
+        <rasterresampler maxOversampling="2"/>
+      </pipe>
+      <blendMode>0</blendMode>
+    </maplayer>
+    <maplayer minimumScale="inf" maximumScale="1e+08" type="raster" hasScaleBasedVisibilityFlag="0">
+      <extent>
+        <xmin>313330.87174290500115603</xmin>
+        <ymin>9745669.3670958299189806</ymin>
+        <xmax>314166.19673645502189174</xmax>
+        <ymax>9747606.01442724466323853</ymax>
+      </extent>
+      <id>uav_chm_matched_cropped20180726103057377</id>
+      <datasource>/Users/Tom/Documents/Work/Rprojects/UAVforestR/data/raster/uav_chm_matched_cropped.tif</datasource>
+      <keywordList>
+        <value></value>
+      </keywordList>
+      <layername>uav_chm_matched_cropped</layername>
+      <srs>
+        <spatialrefsys>
+          <proj4>+proj=utm +zone=48 +south +datum=WGS84 +units=m +no_defs</proj4>
+          <srsid>3198</srsid>
+          <srid>32748</srid>
+          <authid>EPSG:32748</authid>
+          <description>WGS 84 / UTM zone 48S</description>
+          <projectionacronym>utm</projectionacronym>
+          <ellipsoidacronym>WGS84</ellipsoidacronym>
+          <geographicflag>false</geographicflag>
+        </spatialrefsys>
+      </srs>
+      <customproperties>
+        <property key="embeddedWidgets/count" value="0"/>
+        <property key="identify/format" value="Value"/>
+      </customproperties>
+      <provider>gdal</provider>
+      <noData>
+        <noDataList bandNo="1" useSrcNoData="1"/>
+      </noData>
+      <map-layer-style-manager current="">
+        <map-layer-style name=""/>
+      </map-layer-style-manager>
+      <pipe>
+        <rasterrenderer opacity="1" alphaBand="0" classificationMax="35" classificationMinMaxOrigin="User" band="1" classificationMin="0" type="singlebandpseudocolor">
+          <rasterTransparency/>
+          <rastershader>
+            <colorrampshader colorRampType="INTERPOLATED" clip="0">
+              <item alpha="255" value="0" label="0" color="#f0f9e8"/>
+              <item alpha="255" value="8.75" label="8.75" color="#bae4bc"/>
+              <item alpha="255" value="17.5" label="17.5" color="#7bccc4"/>
+              <item alpha="255" value="26.2" label="26.2" color="#43a2ca"/>
+              <item alpha="255" value="35" label="35" color="#0868ac"/>
+            </colorrampshader>
+          </rastershader>
+        </rasterrenderer>
+        <brightnesscontrast brightness="0" contrast="0"/>
+        <huesaturation colorizeGreen="128" colorizeOn="0" colorizeRed="255" colorizeBlue="128" grayscaleMode="0" saturation="0" colorizeStrength="100"/>
+        <rasterresampler maxOversampling="2"/>
+      </pipe>
+      <blendMode>0</blendMode>
+    </maplayer>
+  </projectlayers>
+  <properties>
+    <Measurement>
+      <DistanceUnits type="QString">meters</DistanceUnits>
+      <AreaUnits type="QString">m2</AreaUnits>
+    </Measurement>
+    <SpatialRefSys>
+      <ProjectCRSProj4String type="QString">+proj=longlat +datum=WGS84 +no_defs</ProjectCRSProj4String>
+      <ProjectCrs type="QString">EPSG:4326</ProjectCrs>
+      <ProjectCRSID type="int">3452</ProjectCRSID>
+      <ProjectionsEnabled type="int">1</ProjectionsEnabled>
+    </SpatialRefSys>
+    <Paths>
+      <Absolute type="bool">false</Absolute>
+    </Paths>
+    <Gui>
+      <SelectionColorBluePart type="int">0</SelectionColorBluePart>
+      <CanvasColorGreenPart type="int">255</CanvasColorGreenPart>
+      <CanvasColorRedPart type="int">255</CanvasColorRedPart>
+      <SelectionColorRedPart type="int">255</SelectionColorRedPart>
+      <SelectionColorAlphaPart type="int">255</SelectionColorAlphaPart>
+      <SelectionColorGreenPart type="int">255</SelectionColorGreenPart>
+      <CanvasColorBluePart type="int">255</CanvasColorBluePart>
+    </Gui>
+    <Digitizing>
+      <DefaultSnapToleranceUnit type="int">1</DefaultSnapToleranceUnit>
+      <LayerSnappingList type="QStringList"/>
+      <LayerSnappingEnabledList type="QStringList"/>
+      <SnappingMode type="QString">current_layer</SnappingMode>
+      <AvoidIntersectionsList type="QStringList"/>
+      <LayerSnappingToleranceUnitList type="QStringList"/>
+      <LayerSnapToList type="QStringList"/>
+      <DefaultSnapType type="QString">to vertex</DefaultSnapType>
+      <DefaultSnapTolerance type="double">15</DefaultSnapTolerance>
+      <LayerSnappingToleranceList type="QStringList"/>
+    </Digitizing>
+    <PositionPrecision>
+      <DecimalPlaces type="int">2</DecimalPlaces>
+      <Automatic type="bool">true</Automatic>
+    </PositionPrecision>
+    <Legend>
+      <filterByMap type="bool">false</filterByMap>
+    </Legend>
+  </properties>
+  <visibility-presets/>
+</qgis>

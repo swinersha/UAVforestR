@@ -44,17 +44,20 @@ uav_agb<-raster_agb(uav_chm, cover_h_thresh = 20, scale = 100)
 uav_cor_agb<-raster_agb(uav_chm+4.14, cover_h_thresh = 20, scale = 100)
 
 
-par(mfrow=c(1,3))
+par(mfrow=c(2,2))
 col.pal<-list(color = colorRampPalette(brewer.pal(9,"GnBu"))(10))$color
 col.breaks<-seq(0, 80, length=length(col.pal)+1)
+# LiDAR measured AGB
 plot(lid_agb, col=col.pal, breaks=col.breaks, colNA='black', axes=FALSE, legend=TRUE, box=FALSE)
+# UAV measured AGB
 plot(uav_cor_agb, col=col.pal, breaks=col.breaks, colNA='black', axes=FALSE, legend=TRUE, box=FALSE)
 col.pal<-list(color = colorRampPalette(brewer.pal(9,"RdBu"))(10))$color
 col.breaks<-seq(-15, 15, length=length(col.pal)+1)
+# Absoute difference
 plot((lid_agb-uav_cor_agb), col = col.pal, breaks=col.breaks, colNA='black', axes=FALSE, legend=TRUE, box=FALSE)
-
 col.pal<-list(color = colorRampPalette(brewer.pal(9,"RdBu"))(10))$color
 col.breaks<-seq(-1, 1, length=length(col.pal)+1)
+# Relative difference
 plot((lid_agb-uav_cor_agb)/lid_agb, col = col.pal, breaks=col.breaks, colNA='black', axes=FALSE, legend=TRUE, box=FALSE)
 
 

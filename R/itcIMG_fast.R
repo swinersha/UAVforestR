@@ -42,6 +42,7 @@ itcIMG_fast <- function (imagery,
                          im_sobel,
                          THRESHSeed,
                          THRESHCrown,
+                         lut,
                          tau,
                          specT,
                          SOBELstr,
@@ -59,7 +60,7 @@ itcIMG_fast <- function (imagery,
 
   # Finds the local maxima:
   coordSeeds <-
-    detect.maxima(img, res(imagery)[1], lm.searchwin = NULL, tau = tau)
+    detect.maxima(img, res(imagery)[1], lm.searchwin = lm.searchwin, lut = lut, tau = tau)
   coordCrown <- segment.crowns(
     x = img,
     x.Sobel = Sobel,
@@ -68,12 +69,15 @@ itcIMG_fast <- function (imagery,
     THRESHCrown = THRESHCrown,
     SOBELstr = SOBELstr,
     scale = res(imagery)[1],
+    lut = lut,
     tau = tau
   )
 
   crowns_sp<-crowns_to_spatial(coordCrown, imagery, pypath, convex.hull = FALSE)
   maxima_sp<-maxima_to_spatial(coordCrown, imagery, pypath)
   crowns_sp<-crown_max_combine(crowns_sp, maxima_sp)
+
+  maxima_sp<<-maxima_sp
 
   return(crowns_sp)
 }

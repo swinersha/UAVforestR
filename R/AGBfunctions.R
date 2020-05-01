@@ -45,21 +45,13 @@ cover_resid_calc<-function(cover, tch){
 #' "A regional model for estimating the aboveground carbon density
 #' of Borneo's tropical forests from airborne laser scanning"
 
-#' @param x A raster image
-#' @param outshape The name of the shapefile if saving
-#' @param gdal_format The format of the shapefile to use; by default ESRI shapefile format
-#' @param pypath The path to gdal_polygonize.py on the system
-#' @param readpoly Logical, encoding whether or not the output should be returned or not. If
-#' not NULL is returned.
-#' @param quiet Logical indicating whether or not a verbose output should be creaeted.
-#' @return A spatialPolygonsDataframe
-#' @export
-#' @author Tom Swinfield
-#' @details
-#'
-#' Created 17-09-13
-ba <- function(tch, cover_resid){
-  1.287 * tch^0.987 * (1 + 1.983 * cover_resid)
+# !!!! Write header file !!!!
+ba <- function(tch, cover_resid=NULL){
+  if(is.null(cover_resid))
+    y<-1.112 * tch
+  if(!is.null(cover_resid))
+    y<-1.287 * tch^0.987 * (1 + 1.983 * cover_resid)
+  return(y)
 }
 
 
@@ -88,15 +80,18 @@ wd <-function(tch){
 #' of Borneo's tropical forests from airborne laser scanning"
 
 #' @param tch Top canopy height as a numeric vector
-#' @param cover_residual Canopy cover proportion residual as a numeric vector
+#' @param cover_residual Canopy cover proportion residual as a numeric vector, if NULL this is not used
 #' @return above ground biomass in tonnes per ha as a numberic vector
 #' @export
 #' @author Tom Swinfield
 #' @details
 #'
 #' Created 17-09-13
-est_AGB<-function(tch, cover_resid) {
-  agb <- 0.567 * tch^0.554 * ba(tch, cover_resid)^1.081 * wd(tch)^0.186
+est_AGB<-function(tch, cover_resid = NULL) {
+  if(is.null(cover_resid))
+    agb <- 0.567 * tch^0.554 * ba(tch)^1.081 * wd(tch)^0.186
+  if(!is.null(cover_resid))
+    agb <- 0.567 * tch^0.554 * ba(tch, cover_resid)^1.081 * wd(tch)^0.186
   return(agb)
   #1.44*tch^0.63 * (6.44*tch)^0.85 * (0.489 + 0.0022*tch)^0.24
 }
@@ -179,6 +174,8 @@ tch_stacker <- function(chm, cover_h_thresh, scale, verbose = TRUE) {
 #' @param cover_h_thresh A numeric value indicating the height at which canopy cover proportion
 #' should be calculated
 #' @param scale The scale over which agb should be calculated in meters
+#' @param use_cover_resid Logical, should canopy cover residuals be used
+#' @param est_ch_gf Logical, should the relationship between ba and canopy cover be calculated
 #' @param verbose logical; indicates whether or not progress should be printed to the console
 #' @return A raster with pixel values denoting above ground biomass in tonnes per ha. Note
 #' that these values should not be added in aggregation but averaged instead.
@@ -187,65 +184,91 @@ tch_stacker <- function(chm, cover_h_thresh, scale, verbose = TRUE) {
 #' @details
 #'
 #' Created 17-09-13
-raster_agb <- function(chm, cover_h_thresh, scale, est_tch_gf = FALSE, verbose = TRUE) {
+#'
+
+raster_agb <- function(chm, cover_h_thresh, scale, use_cover_resid = TRUE, est_tch_gf = FALSE, verbose = TRUE) {
 
   n_pix<-scale / res(chm)[1]
   n_pix<-nearest_neg_round(n_pix)
   w<-matrix(1, n_pix, n_pix)
   progress<-""
   if(verbose) progress<-"text"
-  #lid_cover<-focal(lid_chm, w = matrix(1, 301, 301), fun = function(x) cover(x, h_thresh = 20))
-  if(verbose) cat("Calculating cover: \n")
-  cover_n <-
-    aggregate(
-      chm,
-      fact = n_pix,
-      fun = function(x, na.rm)
-        cover_n(x, h_thresh = cover_h_thresh),
-      progress = progress
-    )
-  if(verbose) cat("\nCalculating openness: \n")
-  noncover_n <-
-    aggregate(
-      chm,
-      fact = n_pix,
-      fun = function(x, na.rm)
-        noncover_n(x, h_thresh = cover_h_thresh),
-      progress = progress
-    )
+
   if(verbose) cat("\nCalculating top canopy height: \n")
   tch <- aggregate(chm, fact = n_pix, fun = mean, progress = progress)
 
-  if(verbose) cat("\nEstimating AGB: \n")
-  tf = cbind(cover_n = values(cover_n),
-             cover_notn = values(noncover_n))
+  agb <- tch # set up a container for the output
 
+  #lid_cover<-focal(lid_chm, w = matrix(1, 301, 301), fun = function(x) cover(x, h_thresh = 20))
+  if (use_cover_resid) { # if using cover resid, this is run to calculate gap fraction
+    if (verbose)
+      cat("Calculating cover: \n")
+    cover_n <-
+      aggregate(
+        chm,
+        fact = n_pix,
+        fun = function(x, na.rm)
+          cover_n(x, h_thresh = cover_h_thresh),
+        progress = progress
+      )
+    if (verbose)
+      cat("\nCalculating openness: \n")
+    noncover_n <-
+      aggregate(
+        chm,
+        fact = n_pix,
+        fun = function(x, na.rm)
+          noncover_n(x, h_thresh = cover_h_thresh),
+        progress = progress
+      )
+    if(verbose) cat("\nEstimating AGB: \n")
+    tf = cbind(cover_n = values(cover_n),
+               cover_notn = values(noncover_n))
+
+    biomass_df <-
+      data.frame(
+        tch = values(tch),
+        n = values(cover_n),
+        notn = values(noncover_n)
+      ) %>%
+      mutate(cover = n / (n + notn))
+
+    if(est_tch_gf){
+      ggplot(biomass_df, aes(x = tch, y = cover)) +
+        geom_point() +
+        geom_smooth(method = "glm",
+                    method.args = list(family = "binomial"))
+
+      fm.cover1 <<- glm(tf ~ tch, data = biomass_df, family = binomial)
+      #summary(fm.cover1)
+      biomass_df$cover_resid <- NA
+      biomass_df$cover_resid[!is.na(biomass_df$n)] <-
+        residuals(fm.cover1, type = "response")
+    }
+    else{
+      biomass_df$cover_resid <- cover_resid_calc(biomass_df$cover, biomass$tch)
+    }
+    agb[] <- est_AGB(biomass_df$tch, biomass_df$cover_resid)
+  }
+  else{ # When cover resid is not used in biomass calculation:
+    biomass_df <-
+      data.frame(
+        tch = values(tch)
+        )
+    agb[] <- est_AGB(biomass_df$tch, cover_resid = NULL)
+  }
+
+  return(agb)
+}
+
+# !!!! You need to write the header file here !!!!
+
+raster_agb2<-function(tch){
   biomass_df <-
     data.frame(
-      tch = values(tch),
-      n = values(cover_n),
-      notn = values(noncover_n)
-    ) %>%
-    mutate(cover = n / (n + notn))
-
-  if(est_tch_gf){
-    ggplot(biomass_df, aes(x = tch, y = cover)) +
-      geom_point() +
-      geom_smooth(method = "glm",
-                  method.args = list(family = "binomial"))
-
-    fm.cover1 <<- glm(tf ~ tch, data = biomass_df, family = binomial)
-    #summary(fm.cover1)
-    biomass_df$cover_resid <- NA
-    biomass_df$cover_resid[!is.na(biomass_df$n)] <-
-      residuals(fm.cover1, type = "response")
-  }
-  else{
-    biomass_df$cover_resid <-cover_resid_calc(biomass_df$cover, biomass$tch)
-  }
-
-  agb <- cover_n
-  agb[] <- est_AGB(biomass_df$tch, biomass_df$cover_resid)
-
+      tch = values(tch)
+    )
+  agb<-tch
+  agb[] <- est_AGB(biomass_df$tch, cover_resid = NULL)
   return(agb)
 }

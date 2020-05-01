@@ -14,8 +14,8 @@
 #' @author Tom Swinfield
 #' @details Created 17-08-17
 
-boundMat_set <- function(r, k, z, scale, tau) {
-  pix2edge <- edge.dist(z, scale = scale, tau = tau)
+boundMat_set <- function(r, k, z, scale, lut, tau) {
+  pix2edge <- edge.dist(z, scale = scale, lut = lut, tau = tau)
   focalWinSize <- pix2edge * 2 + 3
   boundMat <- matrix(0, focalWinSize, focalWinSize)
   boundMat <- list(boundMat, r, k, pix2edge)
@@ -25,7 +25,7 @@ boundMat_set <- function(r, k, z, scale, tau) {
 #' Update boundMat
 #'
 #' @description A table used to update the boundMat matrix according to the values in the focal
-#' pixels being parsed by itcIMG_fast. It is basically a helper funciton.
+#' pixels being parsed by itcIMG_fast. It is basically a helper function.
 #' @param boundMat A boundMat object (created by boundMat_set)
 #' @param filData The boundary conditions of the pixels being parsed by itcIMG_fast
 #' @param fil.dists The distance to each pixel being parsed from the tree maximum / seed.
@@ -51,9 +51,11 @@ boundMat_edit <-
            THRESHCrown,
            THRESHSeed,
            crownrad.THRESH) {
-    coords <- filData[, 1:2]
+  coords <- filData[, 1:2]
   coords[, 1] <- coords[, 1] - boundMat[[2]] + boundMat[[4]] + 1
   coords[, 2] <- coords[, 2] - boundMat[[3]] + boundMat[[4]] + 1
+
+  coords_esc<<-coords
 
   # This is in reverse order so that the last statements (which are the most important) dominate.
   boundMat[[1]][coords] <- 7

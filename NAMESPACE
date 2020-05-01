@@ -2,7 +2,6 @@
 
 export(allom.dist)
 export(allom_lookup)
-export(ba)
 export(blur)
 export(boot_height_rmse)
 export(boundMat_edit)
@@ -37,4 +36,5 @@ export(segment.crowns)
 export(sobel_edge)
 export(sp.poly)
 export(surface_predict)
+export(tch_stacker)
 export(wd)

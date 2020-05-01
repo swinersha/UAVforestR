@@ -17,7 +17,7 @@
 #scale = res(imagery)[1]
 #tau = 90
 
-detect.maxima <- function(x, scale, lm.searchwin = NULL, tau = 90) {
+detect.maxima <- function(x, scale, lm.searchwin = NULL, lut, tau = 90) {
 
   # Creates an empty data frame to store the maxima locations:
   Max <- x
@@ -26,18 +26,25 @@ detect.maxima <- function(x, scale, lm.searchwin = NULL, tau = 90) {
   y <- which(x != 0, arr.ind = T) # Extracts the locations of pixels which are bigger than the min tree height.
   z<-x[y[,1]+nrow(x)*(y[,2]-1)] # extracts the tree heights from the matrix
 
-  WinSize<-allom.dist(z, scale=scale, tau = 50)
-  pix2edge<-edge.dist(z, scale=scale, tau = tau)
+  if (class(lm.searchwin) == 'NULL'){
+    WinSize<-allom.dist(z, scale=scale, lut = lut, tau = tau)
+    pix2edge<-edge.dist(z, scale=scale, lut = lut, tau = tau)
+  }
+  else{
+    WinSize<-3
+    pix2edge<-3
+  }
 
   # Extracts only the pixels far enough from the image edge.
-  y.ind<-y[, 1] > pix2edge &
-    y[, 1] < (nrow(x) - pix2edge) &
-    y[,2] > pix2edge &
-    y[,2] < (ncol(x) - pix2edge)
+    y.ind<-y[, 1] > pix2edge &
+      y[, 1] < (nrow(x) - pix2edge) &
+      y[,2] > pix2edge &
+      y[,2] < (ncol(x) - pix2edge)
 
-  y<-y[y.ind,]
-  WinSize<-WinSize[y.ind]
-  z<-z[y.ind]
+    y<-y[y.ind,]
+    WinSize<-WinSize[y.ind]
+    z<-z[y.ind]
+
   length.total<-length(z)
 
   coordSeeds <-
@@ -66,6 +73,11 @@ detect.maxima <- function(x, scale, lm.searchwin = NULL, tau = 90) {
     hf.sWS <-
       floor(searchWinSize / 2) # half the search window size rounded to ceiling
     FIL <- matrix(searchWinSize, searchWinSize, data = NA)
+
+    r_esc<<-r
+    k_esc<<-k
+    z_esc<<-z[i]
+    hf.sWS_esc<<-hf.sWS
     # Extracts the search window for the pixel:
     FIL <- x[(r - hf.sWS):(r + hf.sWS),
                 (k - hf.sWS):(k + hf.sWS)]

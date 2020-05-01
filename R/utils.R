@@ -13,11 +13,10 @@
 #' Created 16-10-10
 
 rq_lut<-function(x, y, log){
-  rq_tau<-function(x, y, tau, log){
-    if(log){
-      x<-log(x); y<-log(y)
-    }
-
+  if(log){
+    x<-log(x); y<-log(y)
+  }
+  rq_tau<-function(x, y, tau){
     fit = quantreg::rq(y ~ x, tau = tau )
     a <- coef(fit)[1]
     b <- coef(fit)[2]
@@ -26,7 +25,7 @@ rq_lut<-function(x, y, log){
     rownames(params)<-NULL
     return(params)
   }
-  lut<-lapply((1:100)/100, function(tau) rq_tau(x, y, tau, log))
+  lut<-lapply((1:100)/100, function(tau) rq_tau(x, y, tau))
   lut<-do.call(rbind, lut)
   return(lut)
 }
@@ -42,11 +41,12 @@ rq_lut<-function(x, y, log){
 #'
 #' Created 16-10-10
 
-edge.dist<-function(z, scale, tau)
+edge.dist<-function(z, scale, lut, tau)
 {
-  radius<-htod(z, tau)/2
+  radius<-htod(z, lut, tau)/2
   radius<-radius/scale
   pixels<-ceiling(radius)
+  pixels[pixels<2]<-2
   names(pixels)<-NULL
   return(pixels)
 }
@@ -65,9 +65,9 @@ edge.dist<-function(z, scale, tau)
 #'
 #' Created 16-10-10
 
-allom.dist<-function(z, scale, tau)
+allom.dist<-function(z, scale, lut, tau)
 {
-  diam<-htod(x=z, tau = tau)
+  diam<-htod(x=z, lut = lut, tau = tau)
   diam<-(diam/scale)
   win.size<-2*round((diam+1)/2)-1
   win.size[win.size<3]<-3
@@ -156,4 +156,4 @@ allom_lookup<-function(x, lut, tau, antilog)
 #'
 #' Created 16-10-10
 
-htod<-function(x, tau) htod_lookup(x, lut=lut_lid, tau)
+htod<-function(x, lut, tau) htod_lookup(x, lut, tau)
