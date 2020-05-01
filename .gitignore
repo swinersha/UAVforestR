@@ -3,6 +3,7 @@
 .RData
 .Ruserdata
 data
+!data/trees
 Figures
 man
 Manuscript
